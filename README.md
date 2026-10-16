@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LiftLog
 
-## Getting Started
+A gym and nutrition tracker for building muscle while staying lean. It's an installable web app (PWA) for iPhone and laptop. Your data is saved on the device first, so logging works with no signal, and it syncs across devices once you connect Supabase.
 
-First, run the development server:
+Design: [docs/superpowers/specs/2026-10-16-gym-nutrition-tracker-design.md](docs/superpowers/specs/2026-10-16-gym-nutrition-tracker-design.md)
+
+## What it does
+
+- **Workout**: your split rotates in order, so a missed day is never skipped. Each exercise shows last session's numbers, and the next set is pre-filled, so logging takes one tap. The rest timer starts on its own, and PRs are flagged as they happen.
+- **Food**: search 150+ common Indian dishes plus packaged foods from Open Food Facts, or scan a barcode. You can log saved meals in one tap and create your own foods.
+- **Targets**: calories and protein start from your body stats. Every two weeks your weight trend is checked and calories are nudged up or down by 100–150 kcal. You can undo any change.
+- **Progress**: weekly-average body weight against your goal pace, an estimated 1-rep max trend per lift, and protein and calorie hit days.
+
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. Other commands: `npm test` runs the logic tests, `npm run build` makes a production build, and `npm start` serves that build. The service worker only runs in production builds.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Put it on your iPhone
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Deploy (below) so the app has an `https://` address.
+2. Open it in **Safari**, tap **Share**, then **Add to Home Screen**.
+3. Open it from the home screen. Safari can clear data for sites that aren't installed, so always use the home-screen app.
 
-## Learn More
+## Deploy to Vercel (free)
 
-To learn more about Next.js, take a look at the following resources:
+1. Push this folder to a GitHub repository.
+2. At vercel.com, choose **Add New → Project**, import the repo, and keep the defaults.
+3. Optional: add the sync keys below as environment variables, then redeploy.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Turn on sync (Supabase, free)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Without these keys the app works fully on one device. To sync your phone and laptop:
 
-## Deploy on Vercel
+1. Create a project at supabase.com.
+2. In **SQL Editor**, run [supabase/migrations/0001_user_records.sql](supabase/migrations/0001_user_records.sql). It creates one table, with row-level security so each person can only see their own data.
+3. In **Authentication → Email Templates → Magic Link**, make the email show the code by adding `{{ .Token }}` to the body. The app signs in with a 6-digit code instead of a link, because on iPhone a link opens Safari instead of the home-screen app.
+4. In **Project Settings → API**, copy the project URL and the anon public key into `.env.local` (and into Vercel's environment variables):
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+5. Restart or redeploy, then sign in under **Settings → Account** on each device.
+
+On a new device, sign in on the welcome screen **before** you set it up. If you set it up first, you'll end up with two copies of your split.
+
+## How it's built
+
+- Next.js 16 (App Router) + TypeScript + Tailwind 4, rendered on the client. The server only sends the app shell and proxies food lookups.
+- Dexie (IndexedDB) holds all your data. Each write is also queued in an outbox that [src/lib/sync.ts](src/lib/sync.ts) pushes to Supabase, and conflicts are resolved by last write wins.
+- Food data:
+  - Indian dishes: [src/lib/data/indian-foods.ts](src/lib/data/indian-foods.ts), typical home-recipe values.
+  - Packaged foods: Open Food Facts, through [src/app/api/foods](src/app/api/foods).
+- Logic with tests: targets and auto-adjust ([src/lib/targets.ts](src/lib/targets.ts)), rotation, PRs, and pre-fill ([src/lib/workout-logic.ts](src/lib/workout-logic.ts)), and food search ([src/lib/food-search.ts](src/lib/food-search.ts)).

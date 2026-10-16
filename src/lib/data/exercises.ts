@@ -1,0 +1,61 @@
+// Stable ids so the same exercise matches across devices after sync.
+export const EXERCISE_LIBRARY: { id: string; name: string; muscle: string }[] = [
+  // Chest
+  { id: "bench-press", name: "Bench press", muscle: "Chest" },
+  { id: "incline-bench-press", name: "Incline bench press", muscle: "Chest" },
+  { id: "incline-db-press", name: "Incline dumbbell press", muscle: "Chest" },
+  { id: "db-bench-press", name: "Dumbbell bench press", muscle: "Chest" },
+  { id: "chest-press-machine", name: "Chest press machine", muscle: "Chest" },
+  { id: "cable-fly", name: "Cable fly", muscle: "Chest" },
+  { id: "pec-deck", name: "Pec deck", muscle: "Chest" },
+  { id: "dips", name: "Dips", muscle: "Chest" },
+  { id: "push-up", name: "Push-up", muscle: "Chest" },
+  // Back
+  { id: "deadlift", name: "Deadlift", muscle: "Back" },
+  { id: "pull-up", name: "Pull-up", muscle: "Back" },
+  { id: "chin-up", name: "Chin-up", muscle: "Back" },
+  { id: "lat-pulldown", name: "Lat pulldown", muscle: "Back" },
+  { id: "barbell-row", name: "Barbell row", muscle: "Back" },
+  { id: "db-row", name: "One-arm dumbbell row", muscle: "Back" },
+  { id: "seated-cable-row", name: "Seated cable row", muscle: "Back" },
+  { id: "t-bar-row", name: "T-bar row", muscle: "Back" },
+  { id: "chest-supported-row", name: "Chest-supported row", muscle: "Back" },
+  { id: "face-pull", name: "Face pull", muscle: "Shoulders" },
+  { id: "shrug", name: "Shrug", muscle: "Back" },
+  // Shoulders
+  { id: "overhead-press", name: "Overhead press", muscle: "Shoulders" },
+  { id: "db-shoulder-press", name: "Dumbbell shoulder press", muscle: "Shoulders" },
+  { id: "lateral-raise", name: "Lateral raise", muscle: "Shoulders" },
+  { id: "cable-lateral-raise", name: "Cable lateral raise", muscle: "Shoulders" },
+  { id: "rear-delt-fly", name: "Rear delt fly", muscle: "Shoulders" },
+  // Legs
+  { id: "squat", name: "Squat", muscle: "Legs" },
+  { id: "front-squat", name: "Front squat", muscle: "Legs" },
+  { id: "leg-press", name: "Leg press", muscle: "Legs" },
+  { id: "hack-squat", name: "Hack squat", muscle: "Legs" },
+  { id: "romanian-deadlift", name: "Romanian deadlift", muscle: "Legs" },
+  { id: "bulgarian-split-squat", name: "Bulgarian split squat", muscle: "Legs" },
+  { id: "walking-lunge", name: "Walking lunge", muscle: "Legs" },
+  { id: "leg-extension", name: "Leg extension", muscle: "Legs" },
+  { id: "leg-curl", name: "Leg curl", muscle: "Legs" },
+  { id: "hip-thrust", name: "Hip thrust", muscle: "Legs" },
+  { id: "calf-raise", name: "Standing calf raise", muscle: "Legs" },
+  { id: "seated-calf-raise", name: "Seated calf raise", muscle: "Legs" },
+  // Arms
+  { id: "barbell-curl", name: "Barbell curl", muscle: "Arms" },
+  { id: "db-curl", name: "Dumbbell curl", muscle: "Arms" },
+  { id: "hammer-curl", name: "Hammer curl", muscle: "Arms" },
+  { id: "preacher-curl", name: "Preacher curl", muscle: "Arms" },
+  { id: "cable-curl", name: "Cable curl", muscle: "Arms" },
+  { id: "triceps-pushdown", name: "Triceps pushdown", muscle: "Arms" },
+  { id: "overhead-triceps-ext", name: "Overhead triceps extension", muscle: "Arms" },
+  { id: "skull-crusher", name: "Skull crusher", muscle: "Arms" },
+  { id: "close-grip-bench", name: "Close-grip bench press", muscle: "Arms" },
+  // Core
+  { id: "plank", name: "Plank (seconds as reps)", muscle: "Core" },
+  { id: "hanging-leg-raise", name: "Hanging leg raise", muscle: "Core" },
+  { id: "cable-crunch", name: "Cable crunch", muscle: "Core" },
+  { id: "ab-wheel", name: "Ab wheel rollout", muscle: "Core" },
+];
+
+export const MUSCLES = ["Chest", "Back", "Shoulders", "Legs", "Arms", "Core"];
