@@ -108,152 +108,160 @@ export function ProgressScreen() {
   return (
     <div className="space-y-4 px-4 pt-5">
       <header>
-        <p className="label">Last {WEEKS} weeks</p>
-        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Progress</h1>
+        <h1 className="text-[30px] leading-tight font-semibold tracking-[-0.02em]">Progress</h1>
+        <p className="mt-0.5 text-sm text-muted">Your last {WEEKS} weeks: strength, body weight, and food</p>
       </header>
 
-      <WeighIn latestToday={latest?.date === today ? latest.kg : null} />
-
-      <section className="card p-4">
-        <div className="mb-3 flex items-baseline justify-between gap-2">
-          <h2 className="font-semibold">Body weight</h2>
-          {status && (
-            <span className={`text-xs font-semibold ${status === "on pace" ? "text-accent" : "text-pr"}`}>
-              {trend! >= 0 ? "+" : ""}
-              {trend!.toFixed(2)} kg/wk · {status}
-            </span>
-          )}
-        </div>
-        <LineChart points={weekly} goal={goalLine} />
-        <p className="num mt-2 text-sm text-muted">
-          {weekly.length >= 2
-            ? `${weekly[0].value.toFixed(1)} → ${weekly.at(-1)!.value.toFixed(1)} kg weekly average · goal +${goalPerWeek.toFixed(2)} kg/wk (dashed)`
-            : "Weigh in a few mornings a week. Weekly averages smooth out water swings."}
-        </p>
-      </section>
-
-      <section className="card p-4">
-        <h2 className="mb-3 font-semibold">Strength</h2>
-        {lifts.length === 0 ? (
-          <p className="text-sm text-muted">Finish a workout to start tracking your lifts.</p>
-        ) : (
-          <>
-            <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
-              {lifts.map((id) => (
-                <button key={id} className="chip" data-on={id === selected} onClick={() => setLift(id)}>
-                  {data.exercises.get(id) ?? "Exercise"}
-                </button>
-              ))}
-            </div>
-            <LineChart points={history} color="var(--pr)" />
-            <p className="num mt-2 text-sm text-muted">
-              {firstBest && lastBest
-                ? `Best set ${formatKg(firstBest.weightKg)} × ${firstBest.reps} → ${formatKg(lastBest.weightKg)} × ${lastBest.reps} · est. 1-rep max ${history.at(-1)?.value ?? 0} kg`
-                : ""}
-            </p>
-          </>
-        )}
-      </section>
-
-      <section className="card p-4">
-        <div className="mb-3 flex items-baseline justify-between gap-2">
-          <h2 className="font-semibold">Consistency</h2>
-          <span className="num text-xs text-muted">
-            {thisWeek} this week{streak > 0 && <> · <b className="text-accent">{streak}-week streak</b></>}
-          </span>
-        </div>
-        <TrainingCalendar dates={new Set(trainedDates)} today={today} />
-        <p className="mt-2 text-xs text-faint">Last 16 weeks. A streak counts weeks in a row with 2 or more workouts.</p>
-      </section>
-
-      <section className="card p-4">
-        <div className="mb-3 flex items-baseline justify-between gap-2">
-          <h2 className="font-semibold">Sets per muscle</h2>
-          <span className="text-xs text-muted">Last 7 days</span>
-        </div>
-        <MuscleBars counts={muscleSets} />
-        <p className="mt-3 text-xs text-faint">About 10–20 hard sets a week per muscle (shaded) is a good range for growth.</p>
-      </section>
-
-      <section className="card p-4">
-        <div className="mb-3 flex items-baseline justify-between gap-2">
-          <h2 className="font-semibold">Calories eaten</h2>
-          <span className="text-xs text-muted">Weekly average of logged days</span>
-        </div>
-        <LineChart
-          points={intake.map((w) => ({ date: w.date, value: w.kcal }))}
-          goal={current ? { from: current.calories, to: current.calories } : undefined}
-          color="var(--accent)"
-        />
-        {intake.length > 0 && (
-          <p className="num mt-2 text-sm text-muted">
-            This week: {intake.at(-1)!.kcal.toLocaleString()} kcal and {intake.at(-1)!.protein} g protein a day
-            {current ? ` · target ${current.calories.toLocaleString()} (dashed)` : ""}
-          </p>
-        )}
-        <div className="mt-3 rounded-2xl bg-surface-2 p-3 text-sm">
-          {maintenance ? (
+      <section aria-labelledby="g-strength" className="space-y-3">
+        <h2 id="g-strength" className="px-1 pt-4 text-xl font-semibold tracking-[-0.01em]">
+          Strength
+        </h2>
+        <section className="card p-4">
+          <h3 className="mb-3 font-semibold">Estimated 1-rep max</h3>
+          {lifts.length === 0 ? (
+            <p className="text-sm text-muted">Finish a workout to start tracking your lifts.</p>
+          ) : (
             <>
-              <p>
-                Your real maintenance is about <b className="num">{maintenance.kcal.toLocaleString()} kcal</b>
-                {current && (
-                  <span className="text-muted">
-                    {" "}
-                    (target is {current.calories >= maintenance.kcal ? "+" : "−"}
-                    {Math.abs(current.calories - maintenance.kcal)})
-                  </span>
-                )}
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                From {maintenance.loggedDays} logged days averaging {maintenance.intake.toLocaleString()} kcal while your weight moved{" "}
-                {maintenance.trend >= 0 ? "+" : ""}
-                {maintenance.trend.toFixed(2)} kg/week. Days you skip logging can make this read low.
+              <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
+                {lifts.map((id) => (
+                  <button key={id} className="chip" data-on={id === selected} onClick={() => setLift(id)}>
+                    {data.exercises.get(id) ?? "Exercise"}
+                  </button>
+                ))}
+              </div>
+              <LineChart points={history} color="var(--pr)" />
+              <p className="num mt-2 text-sm text-muted">
+                {firstBest && lastBest
+                  ? `Best set ${formatKg(firstBest.weightKg)} × ${firstBest.reps} → ${formatKg(lastBest.weightKg)} × ${lastBest.reps} · est. 1-rep max ${history.at(-1)?.value ?? 0} kg`
+                  : ""}
               </p>
             </>
-          ) : (
-            <p className="text-muted">Log food on 10 of the last 21 days and weigh in 4 times to see your real maintenance calories.</p>
           )}
-        </div>
-      </section>
-
-      <section className="card p-4">
-        <h2 className="mb-3 font-semibold">This week&apos;s food</h2>
-        <div className="grid grid-cols-7 gap-1.5 text-center">
-          {week.map((d) => (
-            <div key={d.date} className="flex flex-col items-center gap-1.5">
-              <span className="text-[11px] text-faint">{parseKey(d.date).toLocaleDateString(undefined, { weekday: "narrow" })}</span>
-              <Dot on={d.proteinHit} logged={d.logged} label="Protein" />
-              <Dot on={d.caloriesHit} logged={d.logged} label="Calories" />
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 flex justify-between text-sm">
-          <span>
-            Protein target hit <b className="num">{proteinHits} of 7</b> days
-          </span>
-          <span className="text-muted">
-            Calories <b className="num">{calorieHits}/7</b>
-          </span>
-        </div>
-        <p className="mt-1 text-xs text-faint">Top row protein, bottom row calories (within 10%).</p>
-      </section>
-
-      {current && (
-        <section className="card p-4">
-          <h2 className="mb-1 font-semibold">Targets</h2>
-          <p className="num text-sm">
-            {current.calories.toLocaleString()} kcal · {current.protein} g protein · {current.carbs} g carbs · {current.fat} g fat
-          </p>
-          <ul className="mt-3 space-y-2">
-            {[...data.targets].reverse().slice(0, 5).map((t) => (
-              <li key={t.id} className="text-sm">
-                <span className="num text-muted">{formatShort(t.date)} · {t.calories.toLocaleString()} kcal</span>
-                <p className="text-xs text-faint">{t.reason}</p>
-              </li>
-            ))}
-          </ul>
         </section>
-      )}
+        <section className="card p-4">
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h3 className="font-semibold">Consistency</h3>
+            <span className="num text-xs text-muted">
+              {thisWeek} this week{streak > 0 && <> · <b className="text-accent">{streak}-week streak</b></>}
+            </span>
+          </div>
+          <TrainingCalendar dates={new Set(trainedDates)} today={today} />
+          <p className="mt-2 text-xs text-faint">Last 16 weeks. A streak counts weeks in a row with 2 or more workouts.</p>
+        </section>
+        <section className="card p-4">
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h3 className="font-semibold">Sets per muscle</h3>
+            <span className="text-xs text-muted">Last 7 days</span>
+          </div>
+          <MuscleBars counts={muscleSets} />
+          <p className="mt-3 text-xs text-faint">About 10–20 hard sets a week per muscle (shaded) is a good range for growth.</p>
+        </section>
+      </section>
+      <section aria-labelledby="g-body" className="space-y-3">
+        <h2 id="g-body" className="px-1 pt-4 text-xl font-semibold tracking-[-0.01em]">
+          Body weight
+        </h2>
+        <WeighIn latestToday={latest?.date === today ? latest.kg : null} />
+        <section className="card p-4">
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h3 className="font-semibold">Weekly average</h3>
+            {status && (
+              <span className={`text-xs font-semibold ${status === "on pace" ? "text-accent" : "text-pr"}`}>
+                {trend! >= 0 ? "+" : ""}
+                {trend!.toFixed(2)} kg/wk · {status}
+              </span>
+            )}
+          </div>
+          <LineChart points={weekly} goal={goalLine} />
+          <p className="num mt-2 text-sm text-muted">
+            {weekly.length >= 2
+              ? `${weekly[0].value.toFixed(1)} → ${weekly.at(-1)!.value.toFixed(1)} kg weekly average · goal +${goalPerWeek.toFixed(2)} kg/wk (dashed)`
+              : "Weigh in a few mornings a week. Weekly averages smooth out water swings."}
+          </p>
+        </section>
+      </section>
+      <section aria-labelledby="g-nutrition" className="space-y-3">
+        <h2 id="g-nutrition" className="px-1 pt-4 text-xl font-semibold tracking-[-0.01em]">
+          Nutrition
+        </h2>
+        <section className="card p-4">
+          <h3 className="mb-3 font-semibold">This week&apos;s food</h3>
+          <div className="grid grid-cols-7 gap-1.5 text-center">
+            {week.map((d) => (
+              <div key={d.date} className="flex flex-col items-center gap-1.5">
+                <span className="text-[11px] text-faint">{parseKey(d.date).toLocaleDateString(undefined, { weekday: "narrow" })}</span>
+                <Dot on={d.proteinHit} logged={d.logged} label="Protein" />
+                <Dot on={d.caloriesHit} logged={d.logged} label="Calories" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex justify-between text-sm">
+            <span>
+              Protein target hit <b className="num">{proteinHits} of 7</b> days
+            </span>
+            <span className="text-muted">
+              Calories <b className="num">{calorieHits}/7</b>
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-faint">Top row protein, bottom row calories (within 10%). Outlined days were logged but missed.</p>
+        </section>
+        <section className="card p-4">
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h3 className="font-semibold">Calories eaten</h3>
+            <span className="text-xs text-muted">Weekly average of logged days</span>
+          </div>
+          <LineChart
+            points={intake.map((w) => ({ date: w.date, value: w.kcal }))}
+            goal={current ? { from: current.calories, to: current.calories } : undefined}
+            color="var(--accent)"
+          />
+          {intake.length > 0 && (
+            <p className="num mt-2 text-sm text-muted">
+              This week: {intake.at(-1)!.kcal.toLocaleString()} kcal and {intake.at(-1)!.protein} g protein a day
+              {current ? ` · target ${current.calories.toLocaleString()} (dashed)` : ""}
+            </p>
+          )}
+          <div className="mt-3 rounded-2xl bg-surface-2 p-3 text-sm">
+            {maintenance ? (
+              <>
+                <p>
+                  Your real maintenance is about <b className="num">{maintenance.kcal.toLocaleString()} kcal</b>
+                  {current && (
+                    <span className="text-muted">
+                      {" "}
+                      (target is {current.calories >= maintenance.kcal ? "+" : "−"}
+                      {Math.abs(current.calories - maintenance.kcal)})
+                    </span>
+                  )}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  From {maintenance.loggedDays} logged days averaging {maintenance.intake.toLocaleString()} kcal while your weight moved{" "}
+                  {maintenance.trend >= 0 ? "+" : ""}
+                  {maintenance.trend.toFixed(2)} kg/week. Days you skip logging can make this read low.
+                </p>
+              </>
+            ) : (
+              <p className="text-muted">Log food on 10 of the last 21 days and weigh in 4 times to see your real maintenance calories.</p>
+            )}
+          </div>
+        </section>
+        {current && (
+          <section className="card p-4">
+            <h3 className="mb-1 font-semibold">Targets</h3>
+            <p className="num text-sm">
+              {current.calories.toLocaleString()} kcal · {current.protein} g protein · {current.carbs} g carbs · {current.fat} g fat
+            </p>
+            <ul className="mt-3 space-y-2">
+              {[...data.targets].reverse().slice(0, 5).map((t) => (
+                <li key={t.id} className="text-sm">
+                  <span className="num text-muted">{formatShort(t.date)} · {t.calories.toLocaleString()} kcal</span>
+                  <p className="text-xs text-faint">{t.reason}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </section>
     </div>
   );
 }
@@ -262,7 +270,7 @@ function Dot({ on, logged, label }: { on: boolean; logged: boolean; label: strin
   return (
     <span
       title={label}
-      className={`flex size-7 items-center justify-center rounded-full ${on ? "bg-accent text-on-accent" : logged ? "bg-pr-soft" : "bg-surface-2"}`}
+      className={`flex size-7 items-center justify-center rounded-full ${on ? "bg-accent text-on-accent" : logged ? "border-[1.5px] border-line-strong" : "bg-surface-2"}`}
     >
       {on && <Check size={14} strokeWidth={3} />}
     </span>
@@ -343,10 +351,10 @@ function MuscleBars({ counts }: { counts: Map<string, number> }) {
               <span className="absolute inset-y-0 bg-accent-soft" style={{ left: `${(10 / max) * 100}%`, width: `${(10 / max) * 100}%` }} />
               <span
                 className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500"
-                style={{ width: `${Math.min(100, (n / max) * 100)}%`, background: low ? "var(--pr)" : "var(--accent)" }}
+                style={{ width: `${Math.min(100, (n / max) * 100)}%`, background: low ? "var(--faint)" : "var(--accent)" }}
               />
             </span>
-            <span className={`num w-14 shrink-0 text-right ${low ? "text-pr" : ""}`}>
+            <span className={`num w-14 shrink-0 text-right ${low ? "text-muted" : ""}`}>
               {n}
               {low && " · low"}
             </span>

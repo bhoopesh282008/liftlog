@@ -1,9 +1,21 @@
 "use client";
 
 import { Minus, Plus, X } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: string; children: ReactNode }) {
+  // Drag the grabber or title down to dismiss, as on iPhone.
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startY = useRef<number | null>(null);
+  const endDrag = () => {
+    if (startY.current === null) return;
+    startY.current = null;
+    setDragging(false);
+    if (dragY > 90) onClose();
+    setDragY(0);
+  };
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -21,12 +33,29 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
       <button aria-label="Close" className="animate-fade absolute inset-0 bg-black/40" onClick={onClose} />
       <div
-        className="animate-sheet relative flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-[28px] bg-surface sm:rounded-[28px]"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="animate-sheet relative flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-[28px] bg-surface shadow-[0_-8px_32px_-12px_rgb(0_0_0/0.3)] sm:rounded-[28px]"
+        style={{
+          paddingBottom: "env(safe-area-inset-bottom)",
+          transform: dragY ? `translateY(${dragY}px)` : undefined,
+          transition: dragging ? "none" : "transform 200ms cubic-bezier(0.32, 0.72, 0, 1)",
+        }}
       >
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button className="btn btn-ghost btn-icon -mr-2" onClick={onClose} aria-label="Close">
+        <div className="flex items-start justify-between pr-3 pl-5">
+          <div
+            className="flex-1 cursor-grab touch-none pt-2 pb-2 select-none"
+            onPointerDown={(e) => {
+              startY.current = e.clientY;
+              setDragging(true);
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => startY.current !== null && setDragY(Math.max(0, e.clientY - startY.current))}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+          >
+            <span aria-hidden className="mx-auto mb-2.5 block h-1.5 w-10 rounded-full bg-line-strong sm:hidden" />
+            <h2 className="text-lg font-semibold tracking-[-0.01em]">{title}</h2>
+          </div>
+          <button className="btn btn-ghost btn-icon mt-2" onClick={onClose} aria-label="Close">
             <X size={20} />
           </button>
         </div>

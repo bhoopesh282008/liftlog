@@ -61,11 +61,11 @@ function Gate({ children }: { children: ReactNode }) {
         <InstallHint />
         {children}
       </main>
-      <FloatingTimer hidden={pathname.startsWith("/workout")} />
       <nav
         className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/85 backdrop-blur-xl"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
+        <RestDock linkToWorkout={!pathname.startsWith("/workout")} />
         <div className="mx-auto flex max-w-2xl">
           {TABS.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
@@ -127,17 +127,50 @@ function useBackgroundJobs(ready: boolean) {
   }, []);
 }
 
-function FloatingTimer({ hidden }: { hidden: boolean }) {
-  const timer = useRestTimer();
-  if (hidden || !timer.endAt) return null;
+// Docked above the tab bar like a mini player, so the rest countdown stays
+// in view however far down the workout you scroll, on every tab.
+function RestDock({ linkToWorkout }: { linkToWorkout: boolean }) {
+  const t = useRestTimer();
+  const visible = Boolean(t.endAt) || t.justFinished;
+
+  // Pages and toasts read --dock to keep clear of the bar.
+  useEffect(() => {
+    document.documentElement.style.setProperty("--dock", visible ? "68px" : "0px");
+  }, [visible]);
+
+  if (!visible) return null;
+  const pct = t.total ? t.remaining / t.total : 0;
+  const time = (
+    <span className="flex items-baseline gap-2">
+      <Timer size={16} className="self-center text-muted" aria-hidden />
+      <span className={`num text-[22px] font-semibold tracking-tight ${t.endAt ? "" : "text-accent"}`}>{t.endAt ? mmss(t.remaining) : "Go"}</span>
+      <span className="text-xs text-muted">{t.endAt ? "rest" : "rest done"}</span>
+    </span>
+  );
   return (
-    <Link
-      href="/workout"
-      className="animate-enter num fixed right-4 z-40 flex min-h-11 items-center gap-2 rounded-full bg-text px-4 text-sm font-semibold text-bg shadow-lg"
-      style={{ bottom: "calc(80px + env(safe-area-inset-bottom))" }}
-    >
-      <Timer size={16} /> {mmss(timer.remaining)}
-    </Link>
+    <div className="animate-enter mx-auto max-w-2xl px-3 pt-2" role="timer" aria-label="Rest timer">
+      <div className="relative flex h-14 items-center justify-between overflow-hidden rounded-2xl bg-surface-2 pr-1.5 pl-4">
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 w-full origin-left bg-accent-soft transition-transform duration-300 ease-linear"
+          style={{ transform: `scaleX(${pct})` }}
+        />
+        <span className="relative">{linkToWorkout ? <Link href="/workout">{time}</Link> : time}</span>
+        {t.endAt && (
+          <span className="relative flex gap-1">
+            <button className="btn btn-icon num min-h-11 bg-transparent text-sm" onClick={() => t.add(-15)} aria-label="15 seconds less">
+              −15
+            </button>
+            <button className="btn btn-icon num min-h-11 bg-transparent text-sm" onClick={() => t.add(15)} aria-label="15 seconds more">
+              +15
+            </button>
+            <button className="btn min-h-11 bg-surface px-3 text-sm" onClick={t.stop}>
+              Skip
+            </button>
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 

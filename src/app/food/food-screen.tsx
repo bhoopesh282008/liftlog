@@ -290,7 +290,7 @@ export function FoodScreen() {
                       const tt = entryTotals(e);
                       return (
                         <li key={e.id}>
-                          <button className="flex min-h-14 w-full items-center justify-between gap-3 py-2 text-left" onClick={() => setTarget({ kind: "edit", entry: e })}>
+                          <button className="press-inset flex min-h-14 w-full items-center justify-between gap-3 py-2 text-left" onClick={() => setTarget({ kind: "edit", entry: e })}>
                             <span className="min-w-0">
                               <span className="block truncate">{e.name}</span>
                               <span className="block text-xs text-muted">
@@ -410,7 +410,7 @@ function ResultList({ foods, onPick }: { foods: Food[]; onPick: (f: Food) => voi
     <ul className="card divide-y divide-line px-4">
       {foods.map((f) => (
         <li key={f.id}>
-          <button className="flex min-h-14 w-full items-center justify-between gap-3 py-2 text-left" onClick={() => onPick(f)}>
+          <button className="press-inset flex min-h-14 w-full items-center justify-between gap-3 py-2 text-left" onClick={() => onPick(f)}>
             <span className="min-w-0">
               <span className="block truncate">{f.name}</span>
               <span className="block truncate text-xs text-muted">

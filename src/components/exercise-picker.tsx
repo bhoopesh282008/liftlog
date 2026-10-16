@@ -61,7 +61,7 @@ export function ExercisePicker({ open, onClose, onPick }: { open: boolean; onClo
             {list.map((e) => (
               <li key={e.id}>
                 <button
-                  className="flex min-h-12 w-full items-center justify-between rounded-xl px-1 text-left transition-colors duration-150 active:bg-surface-2"
+                  className="press-inset flex min-h-12 items-center justify-between text-left"
                   onClick={() => pick(e.id)}
                 >
                   <span>{e.name}</span>

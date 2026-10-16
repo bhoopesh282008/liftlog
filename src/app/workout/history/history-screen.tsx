@@ -84,7 +84,7 @@ export function HistoryScreen() {
                 const minutes = w.finishedAt ? Math.round((w.finishedAt - w.startedAt) / 60_000) : null;
                 return (
                   <li key={w.id}>
-                    <button className="flex min-h-16 w-full items-center gap-3 px-4 py-2.5 text-left active:bg-surface-2" onClick={() => setSelectedId(w.id)}>
+                    <button className="press flex min-h-16 w-full items-center gap-3 px-4 py-2.5 text-left" onClick={() => setSelectedId(w.id)}>
                       <span className="min-w-0 flex-1">
                         <span className="block font-medium">
                           {w.splitDayName}

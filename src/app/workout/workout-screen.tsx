@@ -1,11 +1,11 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { Check, ChevronRight, Dumbbell, History, Plus, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import { Check, ChevronDown, Dumbbell, History, Plus, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ExercisePicker } from "@/components/exercise-picker";
-import { mmss, useRestTimer } from "@/components/rest-timer";
+import { useRestTimer } from "@/components/rest-timer";
 import { useToast } from "@/components/toast";
 import { type Editing, SetSheet, showKg } from "@/components/set-sheet";
 import { Empty } from "@/components/ui";
@@ -36,6 +36,7 @@ export function WorkoutScreen() {
   const [pickedDayId, setPickedDayId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [picking, setPicking] = useState(false);
+  const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const timer = useRestTimer();
   const toast = useToast();
 
@@ -113,10 +114,13 @@ export function WorkoutScreen() {
 
   return (
     <div className="px-4 pt-5">
-      <header className="mb-4 flex items-start justify-between gap-3">
+      <header className="mb-5 flex items-start justify-between gap-3">
         <div>
-        <p className="label">{active ? <Elapsed since={active.startedAt} /> : day?.id === suggested?.id ? "Next in your rotation" : "Picked for today"}</p>
-        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">{day?.name ?? active?.splitDayName ?? "Workout"}</h1>
+          <h1 className="text-[30px] leading-tight font-semibold tracking-[-0.02em]">{day?.name ?? active?.splitDayName ?? "Workout"}</h1>
+          <p className="mt-0.5 text-sm text-muted">
+            {active ? <Elapsed since={active.startedAt} /> : day?.id === suggested?.id ? "Next in your rotation" : "Picked for today"}
+            {plan.length > 0 && ` · ${plan.length} exercises`}
+          </p>
         </div>
         <Link href="/workout/history" className="btn btn-ghost -mr-2 text-sm">
           <History size={18} /> History
@@ -134,8 +138,6 @@ export function WorkoutScreen() {
         </div>
       )}
 
-      <RestCard />
-
       <div className="space-y-3">
         {plan.map((p, i) => {
           const ex = exercises.get(p.exerciseId);
@@ -151,6 +153,15 @@ export function WorkoutScreen() {
               last={sessions[0] ?? []}
               progression={planProgression(p.exerciseId, p, sessions)}
               current={i === currentIdx}
+              expanded={i === currentIdx || opened.has(p.exerciseId)}
+              onToggle={() =>
+                setOpened((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(p.exerciseId)) next.delete(p.exerciseId);
+                  else next.add(p.exerciseId);
+                  return next;
+                })
+              }
               onLog={(w, r) => commit(p.exerciseId, w, r)}
               onEdit={(e) => setEditing(e)}
             />
@@ -224,6 +235,8 @@ function ExerciseCard({
   last,
   progression,
   current,
+  expanded,
+  onToggle,
   onLog,
   onEdit,
 }: {
@@ -233,6 +246,8 @@ function ExerciseCard({
   last: WorkoutSet[];
   progression: Progression | null;
   current: boolean;
+  expanded: boolean;
+  onToggle: () => void;
   onLog: (weightKg: number, reps: number) => void;
   onEdit: (e: Editing) => void;
 }) {
@@ -242,123 +257,108 @@ function ExerciseCard({
 
   return (
     <section
-      className={`card p-4 transition-[border-color] duration-200 ${current ? "border-line-strong" : ""}`}
+      className={`card transition-[box-shadow,border-color] duration-200 ${current ? "border-transparent shadow-[0_0_0_1.5px_var(--accent),0_8px_24px_-12px_rgb(0_0_0/0.35)]" : ""}`}
       aria-current={current ? "step" : undefined}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="font-semibold">{exercise.name}</h2>
-          <p className="mt-0.5 text-sm text-muted">
-            {last.length ? <>Last time: <span className="num">{formatSets(last).replace(/^0 kg/, "BW")}</span></> : "First time: set a baseline"}
-          </p>
-          {progression && !complete && <ProgressionNote p={progression} />}
-        </div>
-        <span className={`num shrink-0 text-xs ${complete ? "text-accent" : "text-faint"}`}>
-          {complete ? <Check size={18} /> : `${plan.sets} × ${range}`}
+      <button
+        className="flex w-full items-start justify-between gap-3 p-4 text-left"
+        onClick={current ? undefined : onToggle}
+        aria-expanded={expanded}
+        disabled={current}
+      >
+        <span className="min-w-0">
+          <span className={`block font-semibold ${complete && !expanded ? "text-muted" : ""}`}>{exercise.name}</span>
+          <span className="mt-0.5 block text-sm text-muted">
+            {complete && !expanded ? (
+              <span className="num">{formatSets(done).replace(/^0 kg/, "BW")}</span>
+            ) : last.length ? (
+              <>
+                Last time: <span className="num">{formatSets(last).replace(/^0 kg/, "BW")}</span>
+              </>
+            ) : (
+              "First time: set a baseline"
+            )}
+          </span>
         </span>
-      </div>
-
-      <ul className="mt-3 divide-y divide-line">
-        {done.map((s, i) => (
-          <li key={s.id}>
-            <button
-              className="flex min-h-12 w-full items-center justify-between text-left"
-              onClick={() => onEdit({ exerciseId: s.exerciseId, set: s, weightKg: s.weightKg, reps: s.reps })}
-            >
-              <span className="num">
-                <span className="mr-3 inline-block w-10 text-faint">Set {i + 1}</span>
-                {showKg(s.weightKg)} × {s.reps}
-              </span>
-              {s.pr ? (
-                <span className="animate-pop flex items-center gap-1 rounded-full bg-pr-soft px-2.5 py-1 text-xs font-semibold text-pr">
-                  <Trophy size={13} /> New PR
-                </span>
-              ) : (
-                <Check size={18} className="text-accent" />
-              )}
-            </button>
-          </li>
-        ))}
-        {Array.from({ length: pendingCount }, (_, k) => {
-          const idx = done.length + k;
-          const s = suggestSet(idx, done, progression, plan.repMin);
-          const first = k === 0;
-          return (
-            <li key={`p${k}`} className={`flex min-h-12 items-center justify-between ${first ? "" : "opacity-45"}`}>
-              <button
-                className="num -ml-1 min-h-11 rounded-lg px-1 text-left"
-                onClick={() => onEdit({ exerciseId: exercise.id, weightKg: s?.weightKg ?? 0, reps: s?.reps ?? plan.repMin })}
-                aria-label="Change weight and reps"
-              >
-                <span className="mr-3 inline-block w-10 text-faint">Set {idx + 1}</span>
-                {s && (last.length || done.length) ? (
-                  <span className="border-b border-dashed border-line-strong">
+        <span className={`num flex shrink-0 items-center gap-1 text-xs ${complete ? "text-accent" : "text-faint"}`}>
+          {complete ? <Check size={18} /> : `${plan.sets} × ${range}`}
+          {!current && <ChevronDown size={16} className={`text-faint transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />}
+        </span>
+      </button>
+      {expanded && (
+        <div className="-mt-2 px-4 pb-3">
+          {progression && !complete && <ProgressionNote p={progression} />}
+          <ul className="mt-2 divide-y divide-line">
+            {done.map((s, i) => (
+              <li key={s.id}>
+                <button
+                  className="flex min-h-12 w-full items-center justify-between text-left"
+                  onClick={() => onEdit({ exerciseId: s.exerciseId, set: s, weightKg: s.weightKg, reps: s.reps })}
+                >
+                  <span className="num">
+                    <span className="mr-3 inline-block w-10 text-faint">Set {i + 1}</span>
                     {showKg(s.weightKg)} × {s.reps}
                   </span>
-                ) : s ? (
-                  <span className="border-b border-dashed border-line-strong text-muted">Enter weight × {s.reps}</span>
-                ) : (
-                  <span className="text-faint">Tap to enter</span>
-                )}
-              </button>
-              {first && (
-                <button
-                  className="btn btn-primary min-h-10 px-5 text-sm"
-                  onClick={() =>
-                    s && (last.length || done.length) ? onLog(s.weightKg, s.reps) : onEdit({ exerciseId: exercise.id, weightKg: s?.weightKg ?? 0, reps: s?.reps ?? plan.repMin })
-                  }
-                >
-                  Log
+                  {s.pr ? (
+                    <span className="animate-pop flex items-center gap-1 rounded-full bg-pr-soft px-2.5 py-1 text-xs font-semibold text-pr">
+                      <Trophy size={13} /> New PR
+                    </span>
+                  ) : (
+                    <Check size={18} className="text-accent" />
+                  )}
                 </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      {pendingCount === 0 && (
-        <button
-          className="mt-1 flex min-h-10 items-center gap-1 text-sm text-muted"
-          onClick={() => {
-            const prev = done[done.length - 1];
-            onEdit({ exerciseId: exercise.id, weightKg: prev?.weightKg ?? 0, reps: prev?.reps ?? plan.repMin });
-          }}
-        >
-          <Plus size={16} /> Add set
-        </button>
+              </li>
+            ))}
+            {Array.from({ length: pendingCount }, (_, k) => {
+              const idx = done.length + k;
+              const s = suggestSet(idx, done, progression, plan.repMin);
+              const first = k === 0;
+              return (
+                <li key={`p${k}`} className={`flex min-h-12 items-center justify-between ${first ? "" : "opacity-45"}`}>
+                  <button
+                    className="num -ml-1 min-h-11 rounded-lg px-1 text-left"
+                    onClick={() => onEdit({ exerciseId: exercise.id, weightKg: s?.weightKg ?? 0, reps: s?.reps ?? plan.repMin })}
+                    aria-label="Change weight and reps"
+                  >
+                    <span className="mr-3 inline-block w-10 text-faint">Set {idx + 1}</span>
+                    {s && (last.length || done.length) ? (
+                      <span className="border-b border-dashed border-line-strong">
+                        {showKg(s.weightKg)} × {s.reps}
+                      </span>
+                    ) : s ? (
+                      <span className="border-b border-dashed border-line-strong text-muted">Enter weight × {s.reps}</span>
+                    ) : (
+                      <span className="text-faint">Tap to enter</span>
+                    )}
+                  </button>
+                  {first && (
+                    <button
+                      className="btn btn-primary min-h-10 px-5 text-sm"
+                      onClick={() =>
+                        s && (last.length || done.length) ? onLog(s.weightKg, s.reps) : onEdit({ exerciseId: exercise.id, weightKg: s?.weightKg ?? 0, reps: s?.reps ?? plan.repMin })
+                      }
+                    >
+                      Log
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {pendingCount === 0 && (
+            <button
+              className="mt-1 flex min-h-10 items-center gap-1 text-sm text-muted"
+              onClick={() => {
+                const prev = done[done.length - 1];
+                onEdit({ exerciseId: exercise.id, weightKg: prev?.weightKg ?? 0, reps: prev?.reps ?? plan.repMin });
+              }}
+            >
+              <Plus size={16} /> Add set
+            </button>
+          )}
+        </div>
       )}
     </section>
-  );
-}
-
-function RestCard() {
-  const t = useRestTimer();
-  if (!t.endAt && !t.justFinished) return null;
-  const pct = t.total ? (t.remaining / t.total) * 100 : 0;
-  return (
-    <div className="card animate-enter mb-3 overflow-hidden p-4" role="timer" aria-live="off">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="label">{t.endAt ? "Rest" : "Rest done"}</p>
-          <p className={`num text-4xl font-semibold tracking-tight ${t.endAt ? "" : "text-accent"}`}>{t.endAt ? mmss(t.remaining) : "Go"}</p>
-        </div>
-        {t.endAt && (
-          <div className="flex gap-1.5">
-            <button className="btn btn-icon num text-sm" onClick={() => t.add(-15)} aria-label="15 seconds less">
-              −15
-            </button>
-            <button className="btn btn-icon num text-sm" onClick={() => t.add(15)} aria-label="15 seconds more">
-              +15
-            </button>
-            <button className="btn text-sm" onClick={t.stop}>
-              Skip <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
-      </div>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-track">
-        <div className="h-full rounded-full bg-accent transition-[width] duration-300 ease-linear" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
   );
 }
 

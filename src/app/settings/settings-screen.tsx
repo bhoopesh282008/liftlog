@@ -65,7 +65,7 @@ export function SettingsScreen() {
       <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Settings</h1>
 
       <Group title="Training">
-        <Link href="/settings/split" className="flex min-h-14 items-center justify-between px-4">
+        <Link href="/settings/split" className="press flex min-h-14 items-center justify-between px-4">
           <span>
             <span className="block">Your split</span>
             <span className="block text-sm text-muted">{days.map((d) => d.name).join(" · ") || "Not set up"}</span>
@@ -172,7 +172,7 @@ export function SettingsScreen() {
 
       <Group title="Data">
         <button
-          className="flex min-h-14 w-full items-center gap-3 px-4 text-left"
+          className="press flex min-h-14 w-full items-center gap-3 px-4 text-left"
           onClick={async () => {
             const blob = new Blob([JSON.stringify(await exportAll(), null, 2)], { type: "application/json" });
             const a = document.createElement("a");
@@ -184,7 +184,7 @@ export function SettingsScreen() {
         >
           <Download size={18} className="text-muted" /> Export a backup
         </button>
-        <RestoreBackupButton className="flex min-h-14 w-full items-center gap-3 px-4 text-left" onDone={(n) => toast(`Restored ${n} items`)} />
+        <RestoreBackupButton className="press flex min-h-14 w-full items-center gap-3 px-4 text-left" onDone={(n) => toast(`Restored ${n} items`)} />
       </Group>
 
       <p className="px-1 pb-4 text-xs text-faint">
