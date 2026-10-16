@@ -1,4 +1,7 @@
 import type { PlannedExercise } from "../types";
+import { MUSCLE_ROUTINES } from "./muscle-routines";
+
+const routineFor = (muscle: string) => MUSCLE_ROUTINES.find((r) => r.muscle === muscle)!.exercises;
 
 const ex = (exerciseId: string, sets: number, repMin: number, repMax: number): PlannedExercise => ({
   exerciseId,
@@ -125,15 +128,16 @@ export const SPLIT_TEMPLATES: {
   },
   {
     id: "bro",
-    name: "Body part split",
-    blurb: "5 days: chest, back, shoulders, legs, arms.",
-    days: [
-      { name: "Chest", exercises: [ex("bench-press", 4, 6, 10), ex("incline-db-press", 3, 8, 12), ex("cable-fly", 3, 12, 15), ex("dips", 3, 8, 12)] },
-      { name: "Back", exercises: [ex("deadlift", 3, 3, 6), ex("pull-up", 3, 6, 10), ex("barbell-row", 3, 8, 12), ex("seated-cable-row", 3, 10, 12)] },
-      { name: "Shoulders", exercises: [ex("overhead-press", 4, 6, 10), ex("lateral-raise", 4, 12, 20), ex("rear-delt-fly", 3, 12, 20), ex("shrug", 3, 10, 15)] },
-      { name: "Legs", exercises: [ex("squat", 4, 5, 8), ex("leg-press", 3, 10, 15), ex("romanian-deadlift", 3, 8, 10), ex("leg-curl", 3, 10, 15), ex("calf-raise", 4, 10, 15)] },
-      { name: "Arms", exercises: [ex("barbell-curl", 3, 8, 12), ex("close-grip-bench", 3, 6, 10), ex("hammer-curl", 3, 10, 12), ex("overhead-triceps-ext", 3, 10, 15)] },
-    ],
+    name: "One muscle per day",
+    blurb: "5 days: chest, back, shoulders, legs, arms. Core twice a week.",
+    days: ["Chest", "Back", "Shoulders", "Legs", "Arms"].map((muscle) => ({
+      name: muscle,
+      exercises: [
+        ...routineFor(muscle),
+        // Core rides along on the two shortest days.
+        ...(muscle === "Chest" || muscle === "Shoulders" ? routineFor("Core").slice(0, 2) : []),
+      ],
+    })),
   },
   {
     id: "empty",

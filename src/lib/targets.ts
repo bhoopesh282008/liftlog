@@ -31,6 +31,16 @@ export const PACE_LABELS: Record<GainPace, string> = {
 };
 
 export const PROTEIN_G_PER_KG = 2;
+
+// Daily protein per kg of body weight. Around 1.6 g/kg captures most of the
+// muscle-building benefit; going higher adds a margin and keeps you fuller.
+export const PROTEIN_LEVELS: { perKg: number; label: string; detail: string }[] = [
+  { perKg: 1.6, label: "1.6 g/kg", detail: "Enough for most of the muscle gain" },
+  { perKg: 2, label: "2.0 g/kg", detail: "Recommended: a safety margin for lean gaining" },
+  { perKg: 2.2, label: "2.2 g/kg", detail: "Upper end, if you like a high-protein diet" },
+];
+
+export const proteinFor = (weightKg: number, perKg = PROTEIN_G_PER_KG) => round(weightKg * perKg, 5);
 const FAT_SHARE = 0.25;
 const KCAL_PER_KG = 7700;
 const ADJUST_EVERY_DAYS = 14;
@@ -61,17 +71,17 @@ export function maintenanceCalories(stats: BodyStats): number {
   return bmr(stats) * ACTIVITY_FACTORS[stats.activity];
 }
 
-export function macrosFor(calories: number, weightKg: number) {
-  const protein = round(weightKg * PROTEIN_G_PER_KG, 5);
+export function macrosFor(calories: number, weightKg: number, perKg = PROTEIN_G_PER_KG) {
+  const protein = proteinFor(weightKg, perKg);
   const fat = round((calories * FAT_SHARE) / 9, 5);
   const carbs = Math.max(0, round((calories - protein * 4 - fat * 9) / 4, 5));
   return { calories, protein, carbs, fat };
 }
 
-export function initialTargets(stats: BodyStats) {
+export function initialTargets(stats: BodyStats, perKg = PROTEIN_G_PER_KG) {
   const surplus = (targetWeeklyGainKg(stats.weightKg, stats.pace) * KCAL_PER_KG) / 7;
   const calories = round(maintenanceCalories(stats) + surplus, 50);
-  return { ...macrosFor(calories, stats.weightKg), surplus: round(surplus, 10) };
+  return { ...macrosFor(calories, stats.weightKg, perKg), surplus: round(surplus, 10) };
 }
 
 // Weekly weight change from a least-squares fit, which is far less noisy

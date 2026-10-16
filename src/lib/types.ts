@@ -21,6 +21,8 @@ export interface Profile extends SyncFields {
   restSeconds: number;
   onboarded: boolean;
   waterGoal?: number; // glasses of 250 ml
+  proteinPerKg?: number; // grams of protein per kg of body weight
+  diet?: "veg" | "egg" | "nonveg";
 }
 
 export interface Target extends SyncFields {

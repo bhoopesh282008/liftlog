@@ -9,7 +9,10 @@ import { useRestTimer } from "@/components/rest-timer";
 import { useToast } from "@/components/toast";
 import { type Editing, SetSheet, showKg } from "@/components/set-sheet";
 import { Empty } from "@/components/ui";
+import { MUSCLE_DAYS, muscleDay } from "@/lib/data/muscle-routines";
+import { addDays, dateKey } from "@/lib/dates";
 import { alive, db, PROFILE_ID } from "@/lib/db";
+import { setsPerMuscle } from "@/lib/progress-logic";
 import { finishWorkout, logSet, remove, save, startWorkout, updateSet } from "@/lib/repo";
 import type { Exercise, PlannedExercise, SplitDay, Workout, WorkoutSet } from "@/lib/types";
 import { formatSets, nextSplitDay, planProgression, previousSessions, type Progression, suggestSet } from "@/lib/workout-logic";
@@ -50,8 +53,30 @@ export function WorkoutScreen() {
   const { days, workouts, sets, exercises, restSeconds } = data;
 
   const day: SplitDay | null = active
-    ? (days.find((d) => d.id === active.splitDayId) ?? null)
-    : (days.find((d) => d.id === pickedDayId) ?? suggested);
+    ? (days.find((d) => d.id === active.splitDayId) ?? muscleDay(active.splitDayId) ?? null)
+    : (days.find((d) => d.id === pickedDayId) ?? muscleDay(pickedDayId) ?? suggested);
+  const isMuscleDay = Boolean(muscleDay(day?.id));
+  const today = dateKey();
+  const muscleOf = new Map([...exercises.values()].map((e) => [e.id, e.muscle]));
+  const weekSets = setsPerMuscle(sets, workouts, muscleOf, addDays(today, -6), today);
+
+  const muscleChips = !active && (
+    <section className="mb-4" aria-label="Train one muscle">
+      <p className="mb-2 px-1 text-sm text-muted">Or train one muscle. Sets in the last 7 days:</p>
+      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
+        {MUSCLE_DAYS.map((d) => {
+          const muscle = d.name.replace(" day", "");
+          const n = weekSets.get(muscle) ?? 0;
+          return (
+            <button key={d.id} className="chip" data-on={d.id === day?.id} onClick={() => setPickedDayId(d.id)}>
+              {muscle}
+              <span className={`num text-xs ${n < 10 ? "text-faint" : "opacity-70"}`}>{n}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
 
   const sessionSets = active ? sets.filter((s) => s.workoutId === active.id) : [];
   const plan: PlannedExercise[] = [...(day?.exercises ?? [])];
@@ -92,18 +117,21 @@ export function WorkoutScreen() {
     timer.stop();
   };
 
-  if (days.length === 0 && !active) {
+  if (days.length === 0 && !active && !isMuscleDay) {
     return (
-      <Empty
-        icon={<Dumbbell size={22} />}
-        title="Set up your split"
-        body="Add the days you train and the exercises for each, and they'll be ready here every session."
-        action={
-          <Link href="/settings/split" className="btn btn-primary">
-            Set up split
-          </Link>
-        }
-      />
+      <div className="px-4">
+        <Empty
+          icon={<Dumbbell size={22} />}
+          title="Set up your split"
+          body="Add the days you train and the exercises for each, and they'll be ready here every session."
+          action={
+            <Link href="/settings/split" className="btn btn-primary">
+              Set up split
+            </Link>
+          }
+        />
+        {muscleChips}
+      </div>
     );
   }
 
@@ -118,7 +146,15 @@ export function WorkoutScreen() {
         <div>
           <h1 className="text-[30px] leading-tight font-semibold tracking-[-0.02em]">{day?.name ?? active?.splitDayName ?? "Workout"}</h1>
           <p className="mt-0.5 text-sm text-muted">
-            {active ? <Elapsed since={active.startedAt} /> : day?.id === suggested?.id ? "Next in your rotation" : "Picked for today"}
+            {active ? (
+              <Elapsed since={active.startedAt} />
+            ) : isMuscleDay ? (
+              "Muscle focus, your rotation stays put"
+            ) : day?.id === suggested?.id ? (
+              "Next in your rotation"
+            ) : (
+              "Picked for today"
+            )}
             {plan.length > 0 && ` · ${plan.length} exercises`}
           </p>
         </div>
@@ -128,7 +164,7 @@ export function WorkoutScreen() {
       </header>
 
       {!active && days.length > 1 && (
-        <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
+        <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
           {days.map((d) => (
             <button key={d.id} className="chip" data-on={d.id === day?.id} onClick={() => setPickedDayId(d.id)}>
               {d.name}
@@ -137,6 +173,7 @@ export function WorkoutScreen() {
           ))}
         </div>
       )}
+      {muscleChips}
 
       <div className="space-y-3">
         {plan.map((p, i) => {

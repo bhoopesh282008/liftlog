@@ -10,19 +10,20 @@ import { useToast } from "@/components/toast";
 import { Segmented } from "@/components/ui";
 import { dateKey } from "@/lib/dates";
 import { alive, db, PROFILE_ID } from "@/lib/db";
-import { ageFrom, ACTIVITY_LABELS, initialTargets, PACE_LABELS } from "@/lib/targets";
-import { exportAll, latestWeight, newId, remove, save, setManualTarget, updateProfile } from "@/lib/repo";
+import { ageFrom, ACTIVITY_LABELS, initialTargets, PACE_LABELS, PROTEIN_G_PER_KG, PROTEIN_LEVELS, proteinFor } from "@/lib/targets";
+import { exportAll, latestWeight, newId, remove, save, setManualTarget, setProteinPerKg, updateProfile } from "@/lib/repo";
 import type { Activity, GainPace } from "@/lib/types";
 
 export function SettingsScreen() {
   const toast = useToast();
   const data = useLiveQuery(async () => {
-    const [profile, days, targets, foods, meals] = await Promise.all([
+    const [profile, days, targets, foods, meals, weights] = await Promise.all([
       db.profile.get(PROFILE_ID),
       db.splitDays.toArray(),
       db.targets.toArray(),
       db.foods.toArray(),
       db.savedMeals.toArray(),
+      db.weights.toArray(),
     ]);
     return {
       profile,
@@ -30,23 +31,28 @@ export function SettingsScreen() {
       target: alive(targets).sort((a, b) => a.date.localeCompare(b.date) || a.updatedAt - b.updatedAt).at(-1),
       customFoods: alive(foods).filter((f) => f.source === "user"),
       meals: alive(meals),
+      latestKg: alive(weights).sort((a, b) => a.date.localeCompare(b.date)).at(-1)?.kg ?? null,
     };
   }, []);
 
   if (!data?.profile) return null;
-  const { profile, days, target, customFoods, meals } = data;
+  const { profile, days, target, customFoods, meals, latestKg } = data;
+  const perKg = profile.proteinPerKg ?? PROTEIN_G_PER_KG;
 
   const recalc = async () => {
     const w = await latestWeight();
     if (!w) return;
-    const t = initialTargets({
+    const t = initialTargets(
+      {
       sex: profile.sex,
       age: ageFrom(profile.birthYear),
       heightCm: profile.heightCm,
       weightKg: w.kg,
       activity: profile.activity,
       pace: profile.pace,
-    });
+      },
+      profile.proteinPerKg,
+    );
     await save("targets", {
       id: newId(),
       date: dateKey(),
@@ -90,6 +96,27 @@ export function SettingsScreen() {
             {target ? `${target.calories.toLocaleString()} kcal · ${target.protein} g protein · ${target.carbs} g carbs · ${target.fat} g fat` : "No target yet"}
           </p>
           <CaloriesForm key={target?.id} initial={target?.calories ?? 0} onSaved={() => toast("Calorie target updated")} />
+        </div>
+        <div className="space-y-2 px-4 py-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <p>Protein goal</p>
+            {latestKg && (
+              <p className="num text-sm text-muted">
+                <b className="text-text">{proteinFor(latestKg, perKg)} g</b> = {perKg.toFixed(1)} g × {latestKg} kg
+              </p>
+            )}
+          </div>
+          <Segmented
+            value={String(perKg)}
+            onChange={(v) => {
+              void setProteinPerKg(Number(v));
+              toast(`Protein goal set to ${Number(v).toFixed(1)} g per kg`);
+            }}
+            options={PROTEIN_LEVELS.map((l) => ({ value: String(l.perKg), label: l.label }))}
+          />
+          <p className="text-sm text-muted">
+            {PROTEIN_LEVELS.find((l) => l.perKg === perKg)?.detail ?? ""}. It updates as your weight changes.
+          </p>
         </div>
         <Row label="Auto-adjust every 2 weeks" detail="Nudges calories when your weight trend is off pace">
           <Switch on={profile.autoAdjust} onChange={(v) => void updateProfile({ autoAdjust: v })} label="Auto-adjust" />

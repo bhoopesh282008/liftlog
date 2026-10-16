@@ -65,11 +65,11 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   );
 }
 
-export function Bar({ value, max, tone = "accent" }: { value: number; max: number; tone?: "accent" | "muted" }) {
+export function Bar({ value, max, tone = "accent", thick = false }: { value: number; max: number; tone?: "accent" | "muted"; thick?: boolean }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   const over = max > 0 && value > max * 1.1;
   return (
-    <div className="h-2 overflow-hidden rounded-full bg-track">
+    <div className={`${thick ? "h-3" : "h-2"} overflow-hidden rounded-full bg-track`}>
       <div
         className="h-full rounded-full transition-[width] duration-500 ease-out"
         style={{

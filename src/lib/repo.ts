@@ -2,7 +2,7 @@ import { alive, db, PROFILE_ID, SYNCED_TABLES } from "./db";
 import { dateKey } from "./dates";
 import { EXERCISE_LIBRARY } from "./data/exercises";
 import { SPLIT_TEMPLATES, type SplitTemplateId } from "./data/split-templates";
-import { initialTargets, macrosFor, planAdjustment, type BodyStats } from "./targets";
+import { initialTargets, macrosFor, planAdjustment, proteinFor, PROTEIN_G_PER_KG, type BodyStats } from "./targets";
 import type {
   DayLog,
   Exercise,
@@ -260,7 +260,29 @@ export async function saveMealFromEntries(name: string, entries: FoodEntry[]) {
 
 export async function logWeight(kg: number, date = dateKey()) {
   const sameDay = alive(await db.weights.where("date").equals(date).toArray())[0];
-  return save("weights", { id: sameDay?.id ?? newId(), date, kg });
+  const entry = await save("weights", { id: sameDay?.id ?? newId(), date, kg });
+  await followWeightWithProtein();
+  return entry;
+}
+
+const perKgOf = async () => (await db.profile.get(PROFILE_ID))?.proteinPerKg ?? PROTEIN_G_PER_KG;
+
+// Protein is set per kg, so it follows your weight. The current target is
+// updated in place (calories unchanged) so the two-week calorie clock isn't
+// reset by a weigh-in.
+export async function followWeightWithProtein(perKg?: number) {
+  const current = await currentTarget();
+  const latest = await latestWeight();
+  if (!current || !latest) return;
+  const factor = perKg ?? (await perKgOf());
+  if (proteinFor(latest.kg, factor) === current.protein) return;
+  const m = macrosFor(current.calories, latest.kg, factor);
+  await save("targets", { ...current, protein: m.protein, carbs: m.carbs, fat: m.fat });
+}
+
+export async function setProteinPerKg(perKg: number) {
+  await updateProfile({ proteinPerKg: perKg });
+  await followWeightWithProtein(perKg);
 }
 
 export async function currentTarget(): Promise<Target | undefined> {
@@ -269,7 +291,7 @@ export async function currentTarget(): Promise<Target | undefined> {
 }
 
 export async function setManualTarget(calories: number, latestKg: number, reason = "Set by you.") {
-  const m = macrosFor(calories, latestKg);
+  const m = macrosFor(calories, latestKg, await perKgOf());
   return save("targets", { id: newId(), date: dateKey(), ...m, source: "manual", reason });
 }
 
@@ -289,7 +311,7 @@ export async function runAutoAdjust(): Promise<Target | null> {
   });
   if (result.kind !== "change") return null;
   const latestKg = weights.sort((a, b) => a.date.localeCompare(b.date)).at(-1)!.kg;
-  const m = macrosFor(current.calories + result.delta, latestKg);
+  const m = macrosFor(current.calories + result.delta, latestKg, profile.proteinPerKg ?? PROTEIN_G_PER_KG);
   const next = await save("targets", { id: newId(), date: dateKey(), ...m, source: "auto", reason: result.reason });
   await db.meta.put({ key: "unseenAdjustment", value: next.id });
   return next;

@@ -14,10 +14,12 @@ import {
   estimateMaintenance,
   lastNDays,
   setsPerMuscle,
+  targetOn,
   weekStreak,
   weeklyIntake,
   weeklyWeightAverages,
 } from "@/lib/progress-logic";
+import { proteinStreak } from "@/lib/protein";
 import { logWeight } from "@/lib/repo";
 import { targetWeeklyGainKg, weeklyTrendKg } from "@/lib/targets";
 import { e1rm, e1rmHistory, formatKg } from "@/lib/workout-logic";
@@ -105,6 +107,14 @@ export function ProgressScreen() {
   const intake = weeklyIntake(totals, since, today);
   const maintenance = estimateMaintenance(totals, data.weights, today);
 
+  // Protein, day by day for 4 weeks
+  const proteinDays = lastNDays(today, 28)
+    .filter((d) => totals.has(d))
+    .map((d) => ({ date: d, value: Math.round(totals.get(d)!.protein), goal: targetOn(d, data.targets)?.protein ?? 0 }));
+  const proteinHit = proteinDays.filter((p) => p.goal && p.value >= p.goal * 0.95).length;
+  const proteinAvg = proteinDays.length ? Math.round(proteinDays.reduce((a, p) => a + p.value, 0) / proteinDays.length) : 0;
+  const proteinRun = proteinStreak(totals, data.targets, today);
+
   return (
     <div className="space-y-4 px-4 pt-5">
       <header>
@@ -184,6 +194,22 @@ export function ProgressScreen() {
         <h2 id="g-nutrition" className="px-1 pt-4 text-xl font-semibold tracking-[-0.01em]">
           Nutrition
         </h2>
+        <section className="card p-4">
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h3 className="font-semibold">Daily protein</h3>
+            <span className="text-xs text-muted">Last 4 weeks, logged days</span>
+          </div>
+          <LineChart points={proteinDays} goal={current ? { from: current.protein, to: current.protein } : undefined} />
+          {proteinDays.length > 0 ? (
+            <p className="num mt-2 text-sm text-muted">
+              Average <b className="text-text">{proteinAvg} g</b> a day · goal hit on {proteinHit} of {proteinDays.length} logged days
+              {proteinRun > 0 && ` · ${proteinRun}-day streak`}
+              {current ? ` · goal ${current.protein} g (dashed)` : ""}
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-muted">Log food for a few days to see your protein trend.</p>
+          )}
+        </section>
         <section className="card p-4">
           <h3 className="mb-3 font-semibold">This week&apos;s food</h3>
           <div className="grid grid-cols-7 gap-1.5 text-center">

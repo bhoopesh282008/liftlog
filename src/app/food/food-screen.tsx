@@ -4,16 +4,19 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Barcode, BookmarkPlus, ChefHat, ChevronLeft, ChevronRight, Copy, Plus, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/toast";
-import { Bar } from "@/components/ui";
 import { addDays, dateKey, formatDay } from "@/lib/dates";
-import { alive, db } from "@/lib/db";
+import { builtinFoods } from "@/lib/data/food-sources";
+import { alive, db, PROFILE_ID } from "@/lib/db";
 import { searchLocal, searchOnline } from "@/lib/food-search";
-import { entryTotals, sumMacros, targetOn } from "@/lib/progress-logic";
+import { dailyTotals, entryTotals, sumMacros, targetOn } from "@/lib/progress-logic";
+import { proteinStreak } from "@/lib/protein";
 import { copyEntries, ensureFood, logFood, logSavedMeal, mealForNow, remove, save, saveMealFromEntries, undoAdjustment } from "@/lib/repo";
 import type { Food, FoodEntry, Meal, SavedMeal } from "@/lib/types";
 import { BarcodeScanner } from "./barcode-scanner";
 import { AddFoodSheet, CustomFoodSheet, type FoodTarget, MEALS, NameSheet, sourceLabel } from "./food-sheets";
 import { HabitsCard } from "./habits-card";
+import { ProteinCard } from "./protein-card";
+import { ProteinIdeas } from "./protein-ideas";
 import { RecipeSheet } from "./recipe-sheet";
 
 const kcal = (n: number) => Math.round(n).toLocaleString();
@@ -32,12 +35,14 @@ export function FoodScreen() {
   const toast = useToast();
 
   const data = useLiveQuery(async () => {
-    const [entries, foods, savedMeals, targets, unseen] = await Promise.all([
+    const [entries, foods, savedMeals, targets, unseen, profile, weights] = await Promise.all([
       db.foodEntries.toArray(),
       db.foods.toArray(),
       db.savedMeals.toArray(),
       db.targets.toArray(),
       db.meta.get("unseenAdjustment"),
+      db.profile.get(PROFILE_ID),
+      db.weights.toArray(),
     ]);
     const liveTargets = alive(targets);
     return {
@@ -46,8 +51,16 @@ export function FoodScreen() {
       savedMeals: alive(savedMeals),
       targets: liveTargets,
       adjustment: liveTargets.find((t) => t.id === unseen?.value) ?? null,
+      perKg: profile?.proteinPerKg,
+      diet: profile?.diet,
+      latestKg: alive(weights).sort((a, b) => a.date.localeCompare(b.date)).at(-1)?.kg ?? null,
     };
   }, []);
+
+  const candidates = useMemo(
+    () => [...builtinFoods().filter((b) => b.common).map((b) => b.food), ...(data?.foods ?? [])],
+    [data?.foods],
+  );
 
   const useCounts = useMemo(() => {
     const m = new Map<string, number>();
@@ -157,39 +170,25 @@ export function FoodScreen() {
       )}
 
       {t && (
-        <section className="card mb-4 p-4">
-          <div className="flex items-baseline justify-between">
-            <p className="label">Protein</p>
-            <p className="num text-sm">
-              <span className="text-xl font-semibold">{g(totals.protein)}</span>
-              <span className="text-muted"> / {t.protein} g</span>
-            </p>
-          </div>
-          <div className="mt-1.5 mb-3">
-            <Bar value={totals.protein} max={t.protein} />
-          </div>
-          <div className="flex items-baseline justify-between">
-            <p className="label">Calories</p>
-            <p className="num text-sm">
-              <span className="text-xl font-semibold">{kcal(totals.kcal)}</span>
-              <span className="text-muted"> / {kcal(t.calories)}</span>
-            </p>
-          </div>
-          <div className="mt-1.5">
-            <Bar value={totals.kcal} max={t.calories} />
-          </div>
-          <div className="num mt-3 flex justify-between text-xs text-muted">
-            <span>
-              Carbs {g(totals.carbs)}/{t.carbs} g
-            </span>
-            <span>
-              Fat {g(totals.fat)}/{t.fat} g
-            </span>
-            <span>
-              {totals.kcal <= t.calories ? `${kcal(t.calories - totals.kcal)} kcal left` : `${kcal(totals.kcal - t.calories)} over`}
-            </span>
-          </div>
-        </section>
+        <>
+          <ProteinCard
+            eaten={totals}
+            target={t}
+            streak={date === dateKey() ? proteinStreak(dailyTotals(data.entries), data.targets, date) : 0}
+            perKg={data.perKg}
+            weightKg={data.latestKg}
+          />
+          {date === dateKey() && (
+            <ProteinIdeas
+              gap={t.protein - totals.protein}
+              kcalLeft={t.calories - totals.kcal}
+              candidates={candidates}
+              useCounts={useCounts}
+              diet={data.diet}
+              onPick={(food, servings) => setTarget({ kind: "add", food, servings })}
+            />
+          )}
+        </>
       )}
 
       <HabitsCard date={date} />
