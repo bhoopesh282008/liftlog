@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import type {
+  DayLog,
   Exercise,
   Food,
   FoodEntry,
@@ -32,6 +33,7 @@ export class TrackerDB extends Dexie {
   foodEntries!: EntityTable<FoodEntry, "id">;
   savedMeals!: EntityTable<SavedMeal, "id">;
   weights!: EntityTable<WeightEntry, "id">;
+  days!: EntityTable<DayLog, "id">;
   outbox!: EntityTable<OutboxItem, "seq">;
   meta!: EntityTable<MetaRow, "key">;
 
@@ -51,6 +53,7 @@ export class TrackerDB extends Dexie {
       outbox: "++seq, table, rowId",
       meta: "key",
     });
+    this.version(2).stores({ days: "id, date" });
   }
 }
 
@@ -67,6 +70,7 @@ export const SYNCED_TABLES: SyncedTable[] = [
   "foodEntries",
   "savedMeals",
   "weights",
+  "days",
 ];
 
 export const PROFILE_ID = "me";

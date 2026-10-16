@@ -1,9 +1,10 @@
-import { alive, db, PROFILE_ID } from "./db";
+import { alive, db, PROFILE_ID, SYNCED_TABLES } from "./db";
 import { dateKey } from "./dates";
 import { EXERCISE_LIBRARY } from "./data/exercises";
 import { SPLIT_TEMPLATES, type SplitTemplateId } from "./data/split-templates";
 import { initialTargets, macrosFor, planAdjustment, type BodyStats } from "./targets";
 import type {
+  DayLog,
   Exercise,
   Food,
   FoodEntry,
@@ -19,7 +20,7 @@ import type {
   Workout,
   WorkoutSet,
 } from "./types";
-import { detectPr } from "./workout-logic";
+import { detectPr, replayPrs } from "./workout-logic";
 
 export const newId = () => crypto.randomUUID();
 
@@ -34,6 +35,7 @@ interface RowMap {
   foodEntries: FoodEntry;
   savedMeals: SavedMeal;
   weights: WeightEntry;
+  days: DayLog;
 }
 type Row<T extends SyncedTable> = RowMap[T];
 
@@ -198,7 +200,7 @@ export async function ensureFood(food: Omit<Food, "updatedAt">) {
 }
 
 export async function logFood(food: Omit<Food, "updatedAt">, servings: number, meal: Meal, date: string) {
-  if (food.source !== "curated") await ensureFood(food);
+  if (food.source !== "curated" && food.source !== "indb") await ensureFood(food);
   return save("foodEntries", {
     id: newId(),
     date,
@@ -322,8 +324,126 @@ export async function latestWeight(): Promise<WeightEntry | undefined> {
 
 export async function exportAll() {
   const out: Record<string, unknown> = { exportedAt: new Date().toISOString(), version: 1 };
-  for (const t of ["profile", "targets", "exercises", "splitDays", "workouts", "sets", "foods", "foodEntries", "savedMeals", "weights"] as const) {
+  for (const t of SYNCED_TABLES) {
     out[t] = alive(await db.table(t).toArray());
   }
   return out;
+}
+
+// Merges a backup into this device. A row is only taken when it's newer
+// than the copy already here, so importing twice is harmless.
+export async function importBackup(data: unknown): Promise<number> {
+  if (!data || typeof data !== "object" || (data as { version?: unknown }).version !== 1) {
+    throw new Error("That file isn't a LiftLog backup.");
+  }
+  let count = 0;
+  for (const t of SYNCED_TABLES) {
+    const rows = (data as Record<string, unknown>)[t];
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows as SyncFields[]) {
+      if (!row || typeof row.id !== "string") continue;
+      const local = (await db.table(t).get(row.id)) as SyncFields | undefined;
+      if (local && (local.updatedAt ?? 0) >= (row.updatedAt ?? 0)) continue;
+      await save(t, row as never);
+      count++;
+    }
+  }
+  return count;
+}
+
+// ---------- History ----------
+
+// Re-reads every set of an exercise in date order and fixes PR flags, so
+// edits and backfilled sessions never leave stale badges behind.
+export async function recomputePrs(exerciseId: string) {
+  const sets = alive(await db.sets.where("exerciseId").equals(exerciseId).toArray());
+  const workouts = new Map(alive(await db.workouts.toArray()).map((w) => [w.id, w]));
+  const ordered = sets
+    .filter((s) => workouts.has(s.workoutId))
+    .sort((a, b) => workouts.get(a.workoutId)!.startedAt - workouts.get(b.workoutId)!.startedAt || a.order - b.order);
+  const flags = replayPrs(ordered);
+  for (const s of ordered) {
+    const pr = flags.get(s.id) ?? null;
+    if (pr !== s.pr) await save("sets", { ...s, pr });
+  }
+}
+
+const atLocalTime = (date: string, hour: number) => {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(y, m - 1, d, hour).getTime();
+};
+
+// A session done on paper: dated in the past and already finished, so it
+// never changes which day is next in the rotation.
+export async function backfillWorkout(date: string, day: SplitDay | null) {
+  const startedAt = atLocalTime(date, 18);
+  return save("workouts", {
+    id: newId(),
+    splitDayId: day?.id ?? null,
+    splitDayName: day?.name ?? "Workout",
+    date,
+    startedAt,
+    finishedAt: startedAt + 3600_000,
+    extraExerciseIds: day?.exercises.map((e) => e.exerciseId) ?? [],
+  });
+}
+
+export async function addHistorySet(workout: Workout, exerciseId: string, weightKg: number, reps: number) {
+  const count = alive(await db.sets.where("workoutId").equals(workout.id).toArray()).filter((s) => s.exerciseId === exerciseId).length;
+  await save("sets", { id: newId(), workoutId: workout.id, exerciseId, order: count, weightKg, reps, loggedAt: Date.now(), pr: null });
+  await recomputePrs(exerciseId);
+}
+
+export async function editHistorySet(set: WorkoutSet, weightKg: number, reps: number) {
+  await save("sets", { ...set, weightKg, reps });
+  await recomputePrs(set.exerciseId);
+}
+
+export async function deleteHistorySet(set: WorkoutSet) {
+  await remove("sets", set.id);
+  await recomputePrs(set.exerciseId);
+}
+
+export async function moveWorkout(workout: Workout, date: string) {
+  const shift = atLocalTime(date, 0) - atLocalTime(workout.date, 0);
+  await save("workouts", {
+    ...workout,
+    date,
+    startedAt: workout.startedAt + shift,
+    finishedAt: workout.finishedAt === null ? null : workout.finishedAt + shift,
+  });
+  const ids = new Set(alive(await db.sets.where("workoutId").equals(workout.id).toArray()).map((s) => s.exerciseId));
+  for (const id of ids) await recomputePrs(id);
+}
+
+// Returns an undo function that brings the workout and its sets back.
+export async function deleteWorkout(workout: Workout) {
+  const sets = alive(await db.sets.where("workoutId").equals(workout.id).toArray());
+  for (const s of sets) await remove("sets", s.id);
+  await remove("workouts", workout.id);
+  const exercises = new Set(sets.map((s) => s.exerciseId));
+  for (const id of exercises) await recomputePrs(id);
+  return async () => {
+    await save("workouts", { ...workout, deletedAt: null });
+    for (const s of sets) await save("sets", { ...s, deletedAt: null });
+    for (const id of exercises) await recomputePrs(id);
+  };
+}
+
+// ---------- Daily habits and copying meals ----------
+
+export async function updateDay(date: string, patch: Partial<Pick<DayLog, "waterGlasses" | "creatine">>) {
+  const current = await db.days.get(date);
+  return save("days", { id: date, date, waterGlasses: 0, creatine: false, ...current, ...patch, deletedAt: null });
+}
+
+// Copies entries onto another day (optionally into one meal slot) and
+// returns the new ids so the copy can be undone.
+export async function copyEntries(entries: FoodEntry[], date: string, meal?: Meal) {
+  const ids: string[] = [];
+  for (const e of entries) {
+    const copy = await save("foodEntries", { ...e, id: newId(), date, meal: meal ?? e.meal, loggedAt: Date.now(), deletedAt: null });
+    ids.push(copy.id);
+  }
+  return ids;
 }

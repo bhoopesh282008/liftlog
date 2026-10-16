@@ -20,6 +20,7 @@ export interface Profile extends SyncFields {
   autoAdjust: boolean;
   restSeconds: number;
   onboarded: boolean;
+  waterGoal?: number; // glasses of 250 ml
 }
 
 export interface Target extends SyncFields {
@@ -73,7 +74,7 @@ export interface WorkoutSet extends SyncFields {
 
 export type PrKind = "weight" | "e1rm";
 
-export type FoodSource = "curated" | "off" | "user";
+export type FoodSource = "curated" | "indb" | "off" | "user";
 
 // Nutrition values are per one serving.
 export interface Macros {
@@ -90,6 +91,9 @@ export interface Food extends SyncFields, Macros {
   source: FoodSource;
   barcode?: string | null;
   brand?: string | null;
+  // Set for home recipes: the ingredients for the whole pot and how many
+  // servings it makes. The macros above are per serving.
+  recipe?: { servings: number; items: SavedMealItem[] } | null;
 }
 
 export interface FoodEntry extends SyncFields, Macros {
@@ -129,7 +133,15 @@ export type SyncedTable =
   | "foods"
   | "foodEntries"
   | "savedMeals"
-  | "weights";
+  | "weights"
+  | "days";
+
+// One row per calendar day (id = YYYY-MM-DD) for quick daily habits.
+export interface DayLog extends SyncFields {
+  date: string;
+  waterGlasses: number;
+  creatine: boolean;
+}
 
 export interface OutboxItem {
   seq?: number;

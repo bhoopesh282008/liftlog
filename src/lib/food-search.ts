@@ -1,4 +1,4 @@
-import { CURATED_FOODS, curatedSearchText } from "./data/indian-foods";
+import { builtinFoods, type BuiltinSource } from "./data/food-sources";
 import type { Food } from "./types";
 
 const norm = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9 ]/g, " ");
@@ -9,18 +9,25 @@ function score(text: string, name: string, tokens: string[]): number {
   let s = 1;
   if (n.startsWith(tokens[0])) s += 3;
   if (n.split(" ").some((w) => w === tokens[0])) s += 2;
+  else if (text.split(" ").some((w) => w === tokens[0])) s += 1.5;
   return s - n.length / 200;
 }
 
 // Local results: built-in Indian foods plus the user's own and cached foods.
-// Foods the user logs often rank higher.
-export function searchLocal(query: string, userFoods: Food[], useCounts: Map<string, number>, limit = 25): Food[] {
+// Everyday dishes and foods the user logs often rank higher.
+export function searchLocal(
+  query: string,
+  userFoods: Food[],
+  useCounts: Map<string, number>,
+  limit = 25,
+  source?: BuiltinSource,
+): Food[] {
   const tokens = norm(query).split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return [];
   const scored: { f: Food; s: number }[] = [];
-  for (const f of CURATED_FOODS) {
-    const s = score(norm(curatedSearchText(f)), f.name, tokens);
-    if (s) scored.push({ f, s: s + Math.min(useCounts.get(f.id) ?? 0, 10) * 0.5 });
+  for (const { food: f, text, common } of builtinFoods(source)) {
+    const s = score(norm(text), f.name, tokens);
+    if (s) scored.push({ f, s: s + (common ? 1 : 0) + Math.min(useCounts.get(f.id) ?? 0, 10) * 0.5 });
   }
   for (const f of userFoods) {
     if (f.deletedAt) continue;

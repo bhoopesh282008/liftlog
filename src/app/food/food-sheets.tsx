@@ -15,9 +15,10 @@ export const MEALS: { value: Meal; label: string }[] = [
 
 const fmt = (n: number) => (n >= 100 ? Math.round(n).toString() : (Math.round(n * 10) / 10).toString());
 
-export function sourceLabel(f: Pick<Food, "source" | "brand">) {
+export function sourceLabel(f: Pick<Food, "source" | "brand" | "recipe">) {
   if (f.source === "off") return f.brand ? `${f.brand} · label` : "Packaged · label";
-  if (f.source === "user") return "Your food";
+  if (f.source === "user") return f.recipe ? `Your recipe · makes ${f.recipe.servings}` : "Your food";
+  if (f.source === "indb") return "Indian Nutrient Databank recipe";
   return "Typical home recipe";
 }
 
@@ -27,6 +28,7 @@ export type FoodTarget =
 
 interface AddFoodProps {
   defaultMeal: Meal;
+  onEditRecipe?: (food: Food) => void;
   onAdd: (food: Food, servings: number, meal: Meal) => void;
   onUpdate: (entry: FoodEntry, servings: number, meal: Meal) => void;
   onDelete: (entry: FoodEntry) => void;
@@ -42,7 +44,7 @@ export function AddFoodSheet({ target, onClose, ...rest }: AddFoodProps & { targ
   );
 }
 
-function AddFoodForm({ target, defaultMeal, onAdd, onUpdate, onDelete }: AddFoodProps & { target: FoodTarget }) {
+function AddFoodForm({ target, defaultMeal, onAdd, onUpdate, onDelete, onEditRecipe }: AddFoodProps & { target: FoodTarget }) {
   const [servings, setServings] = useState(target.kind === "edit" ? target.entry.servings : (target.servings ?? 1));
   const [meal, setMeal] = useState<Meal>(target.kind === "edit" ? target.entry.meal : defaultMeal);
   const per = target.kind === "edit" ? target.entry : target.food;
@@ -52,6 +54,14 @@ function AddFoodForm({ target, defaultMeal, onAdd, onUpdate, onDelete }: AddFood
       <p className="text-sm text-muted">
         {per.serving}
         {target.kind === "add" && ` · ${sourceLabel(target.food)}`}
+        {target.kind === "add" && target.food.recipe && onEditRecipe && (
+          <>
+            {" · "}
+            <button className="font-medium text-accent" onClick={() => onEditRecipe(target.food)}>
+              Edit recipe
+            </button>
+          </>
+        )}
       </p>
       <div className="grid grid-cols-4 gap-2 text-center">
         {(

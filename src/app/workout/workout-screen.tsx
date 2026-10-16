@@ -1,26 +1,19 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { Check, ChevronRight, Dumbbell, Plus, Trash2, Trophy } from "lucide-react";
+import { Check, ChevronRight, Dumbbell, History, Plus, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ExercisePicker } from "@/components/exercise-picker";
 import { mmss, useRestTimer } from "@/components/rest-timer";
 import { useToast } from "@/components/toast";
-import { Empty, Sheet, Stepper } from "@/components/ui";
+import { type Editing, SetSheet, showKg } from "@/components/set-sheet";
+import { Empty } from "@/components/ui";
 import { alive, db, PROFILE_ID } from "@/lib/db";
 import { finishWorkout, logSet, remove, save, startWorkout, updateSet } from "@/lib/repo";
 import type { Exercise, PlannedExercise, SplitDay, Workout, WorkoutSet } from "@/lib/types";
-import { formatSets, lastSessionSets, nextSplitDay, suggestSet } from "@/lib/workout-logic";
+import { formatSets, nextSplitDay, planProgression, previousSessions, type Progression, suggestSet } from "@/lib/workout-logic";
 
-const showKg = (kg: number) => (kg === 0 ? "BW" : `${Number.isInteger(kg) ? kg : kg.toFixed(1)} kg`);
-
-interface Editing {
-  exerciseId: string;
-  set?: WorkoutSet;
-  weightKg: number;
-  reps: number;
-}
 
 export function WorkoutScreen() {
   const data = useLiveQuery(async () => {
@@ -120,9 +113,14 @@ export function WorkoutScreen() {
 
   return (
     <div className="px-4 pt-5">
-      <header className="mb-4">
+      <header className="mb-4 flex items-start justify-between gap-3">
+        <div>
         <p className="label">{active ? <Elapsed since={active.startedAt} /> : day?.id === suggested?.id ? "Next in your rotation" : "Picked for today"}</p>
         <h1 className="text-[28px] leading-tight font-semibold tracking-tight">{day?.name ?? active?.splitDayName ?? "Workout"}</h1>
+        </div>
+        <Link href="/workout/history" className="btn btn-ghost -mr-2 text-sm">
+          <History size={18} /> History
+        </Link>
       </header>
 
       {!active && days.length > 1 && (
@@ -143,14 +141,15 @@ export function WorkoutScreen() {
           const ex = exercises.get(p.exerciseId);
           if (!ex) return null;
           const done = sessionSets.filter((s) => s.exerciseId === p.exerciseId).sort((a, b) => a.order - b.order);
-          const last = lastSessionSets(p.exerciseId, active?.id ?? null, workouts, sets);
+          const sessions = previousSessions(p.exerciseId, active?.id ?? null, workouts, sets);
           return (
             <ExerciseCard
               key={p.exerciseId}
               exercise={ex}
               plan={p}
               done={done}
-              last={last}
+              last={sessions[0] ?? []}
+              progression={planProgression(p.exerciseId, p, sessions)}
               current={i === currentIdx}
               onLog={(w, r) => commit(p.exerciseId, w, r)}
               onEdit={(e) => setEditing(e)}
@@ -223,6 +222,7 @@ function ExerciseCard({
   plan,
   done,
   last,
+  progression,
   current,
   onLog,
   onEdit,
@@ -231,6 +231,7 @@ function ExerciseCard({
   plan: PlannedExercise;
   done: WorkoutSet[];
   last: WorkoutSet[];
+  progression: Progression | null;
   current: boolean;
   onLog: (weightKg: number, reps: number) => void;
   onEdit: (e: Editing) => void;
@@ -250,6 +251,7 @@ function ExerciseCard({
           <p className="mt-0.5 text-sm text-muted">
             {last.length ? <>Last time: <span className="num">{formatSets(last).replace(/^0 kg/, "BW")}</span></> : "First time: set a baseline"}
           </p>
+          {progression && !complete && <ProgressionNote p={progression} />}
         </div>
         <span className={`num shrink-0 text-xs ${complete ? "text-accent" : "text-faint"}`}>
           {complete ? <Check size={18} /> : `${plan.sets} × ${range}`}
@@ -279,7 +281,7 @@ function ExerciseCard({
         ))}
         {Array.from({ length: pendingCount }, (_, k) => {
           const idx = done.length + k;
-          const s = suggestSet(idx, done, last, plan.repMin);
+          const s = suggestSet(idx, done, progression, plan.repMin);
           const first = k === 0;
           return (
             <li key={`p${k}`} className={`flex min-h-12 items-center justify-between ${first ? "" : "opacity-45"}`}>
@@ -360,47 +362,17 @@ function RestCard() {
   );
 }
 
-function SetSheet({
-  editing,
-  name,
-  onClose,
-  onSave,
-  onDelete,
-}: {
-  editing: Editing | null;
-  name: string;
-  onClose: () => void;
-  onSave: (e: Editing) => void;
-  onDelete: (s: WorkoutSet) => void;
-}) {
+// Today's target from double progression, with the reason in plain words.
+function ProgressionNote({ p }: { p: Progression }) {
+  const Icon = p.kind === "deload" ? TrendingDown : TrendingUp;
+  const head =
+    p.kind === "increase" ? `Go up to ${showKg(p.weightKg)}` : p.kind === "deload" ? `Lighter week: ${showKg(p.weightKg)}` : `Aim for ${p.reps.join(", ")} reps`;
   return (
-    <Sheet open={!!editing} onClose={onClose} title={name}>
-      {editing && <SetForm editing={editing} onSave={onSave} onDelete={onDelete} />}
-    </Sheet>
-  );
-}
-
-function SetForm({ editing, onSave, onDelete }: { editing: Editing; onSave: (e: Editing) => void; onDelete: (s: WorkoutSet) => void }) {
-  const [weight, setWeight] = useState(editing.weightKg);
-  const [reps, setReps] = useState(editing.reps);
-  return (
-        <div className="space-y-4">
-          <div>
-            <p className="label mb-1.5">Weight (kg, 0 for bodyweight)</p>
-            <Stepper label="weight" value={weight} step={2.5} onChange={setWeight} format={(v) => String(v)} />
-          </div>
-          <div>
-            <p className="label mb-1.5">Reps</p>
-            <Stepper label="reps" value={reps} step={1} onChange={(v) => setReps(Math.round(v))} />
-          </div>
-          <button className="btn btn-primary w-full" disabled={reps <= 0} onClick={() => onSave({ ...editing, weightKg: weight, reps })}>
-            {editing.set ? "Save set" : "Log set"}
-          </button>
-          {editing.set && (
-            <button className="btn btn-ghost w-full text-danger" onClick={() => onDelete(editing.set!)}>
-              <Trash2 size={16} /> Delete set
-            </button>
-          )}
-        </div>
+    <p className={`mt-1.5 flex items-start gap-1.5 text-sm ${p.kind === "deload" ? "text-pr" : "text-accent"}`}>
+      <Icon size={16} className="mt-0.5 shrink-0" />
+      <span>
+        <span className="font-medium">{head}.</span> <span className="text-muted">{p.note}</span>
+      </span>
+    </p>
   );
 }

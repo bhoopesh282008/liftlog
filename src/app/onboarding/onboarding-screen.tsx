@@ -2,6 +2,7 @@
 
 import { ArrowLeft, Dumbbell } from "lucide-react";
 import { useState } from "react";
+import { RestoreBackupButton } from "@/components/restore-backup";
 import { SignInCard } from "@/components/sign-in";
 import { Segmented } from "@/components/ui";
 import { SPLIT_TEMPLATES, type SplitTemplateId } from "@/lib/data/split-templates";
@@ -45,6 +46,7 @@ export function OnboardingScreen() {
             Get started
           </button>
           {syncConfigured && <SignInCard compact title="Already use LiftLog on another device?" />}
+          <RestoreBackupButton className="btn btn-ghost w-full" />
         </div>
       </div>
     );

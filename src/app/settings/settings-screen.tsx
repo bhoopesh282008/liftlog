@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronRight, Download, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { RestoreBackupButton } from "@/components/restore-backup";
 import { SignInCard } from "@/components/sign-in";
 import { useToast } from "@/components/toast";
 import { Segmented } from "@/components/ui";
@@ -93,6 +94,14 @@ export function SettingsScreen() {
         <Row label="Auto-adjust every 2 weeks" detail="Nudges calories when your weight trend is off pace">
           <Switch on={profile.autoAdjust} onChange={(v) => void updateProfile({ autoAdjust: v })} label="Auto-adjust" />
         </Row>
+        <div className="space-y-2 px-4 py-3">
+          <p>Daily water goal</p>
+          <Segmented
+            value={String(profile.waterGoal ?? 12)}
+            onChange={(v) => void updateProfile({ waterGoal: Number(v) })}
+            options={["8", "12", "14", "16"].map((g) => ({ value: g, label: `${(Number(g) * 0.25).toString()} L` }))}
+          />
+        </div>
         <div className="space-y-3 px-4 py-3">
           <p className="label">Gain pace</p>
           <Segmented
@@ -175,6 +184,7 @@ export function SettingsScreen() {
         >
           <Download size={18} className="text-muted" /> Export a backup
         </button>
+        <RestoreBackupButton className="flex min-h-14 w-full items-center gap-3 px-4 text-left" onDone={(n) => toast(`Restored ${n} items`)} />
       </Group>
 
       <p className="px-1 pb-4 text-xs text-faint">

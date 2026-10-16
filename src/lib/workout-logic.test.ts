@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SplitDay, Workout, WorkoutSet } from "./types";
-import { detectPr, e1rm, formatSets, lastSessionSets, nextSplitDay, suggestSet } from "./workout-logic";
+import { detectPr, e1rm, formatSets, lastSessionSets, nextSplitDay, planProgression, replayPrs, suggestSet } from "./workout-logic";
 
 const day = (id: string, order: number): SplitDay => ({ id, order, name: id, exercises: [], updatedAt: 0 });
 const workout = (id: string, splitDayId: string, startedAt: number, finished = true): Workout => ({
@@ -77,15 +77,65 @@ describe("last time and suggestions", () => {
     expect(lastSessionSets("bench", "w3", workouts, sets).map((s) => s.weightKg)).toEqual([70, 70]);
   });
 
-  it("repeats this session's previous set first", () => {
-    expect(suggestSet(1, [sets[3]], [sets[1], sets[2]], 6)).toEqual({ weightKg: 72.5, reps: 8 });
+  it("keeps this session's weight and uses today's target reps", () => {
+    expect(suggestSet(1, [sets[3]], { weightKg: 70, reps: [9, 8, 8] }, 6)).toEqual({ weightKg: 72.5, reps: 8 });
   });
 
-  it("falls back to the matching set from last time", () => {
-    expect(suggestSet(1, [], [sets[1], sets[2]], 6)).toEqual({ weightKg: 70, reps: 7 });
+  it("starts from the target when nothing is logged yet", () => {
+    expect(suggestSet(0, [], { weightKg: 70, reps: [9, 8, 8] }, 6)).toEqual({ weightKg: 70, reps: 9 });
+  });
+
+  it("has no weight to suggest for a brand-new exercise", () => {
+    expect(suggestSet(0, [], null, 6)).toEqual({ weightKg: 0, reps: 6 });
   });
 
   it("formats sets compactly", () => {
     expect(formatSets([sets[1], sets[2]])).toBe("70 kg × 8, 7");
+  });
+});
+
+describe("progression", () => {
+  const plan = { sets: 3, repMin: 6, repMax: 10 };
+  const s = (weightKg: number, ...reps: number[]) => reps.map((r) => ({ weightKg, reps: r }));
+
+  it("adds weight once every set hits the top of the range", () => {
+    const p = planProgression("bench-press", plan, [s(60, 10, 10, 10)])!;
+    expect(p).toMatchObject({ kind: "increase", weightKg: 62.5, reps: [6, 6, 6] });
+  });
+
+  it("uses 5 kg steps for big lower-body lifts", () => {
+    expect(planProgression("squat", plan, [s(80, 10, 10, 10)])!.weightKg).toBe(85);
+  });
+
+  it("otherwise asks for one more rep at the same weight", () => {
+    expect(planProgression("bench-press", plan, [s(60, 8, 8, 7)])).toMatchObject({ kind: "reps", weightKg: 60, reps: [9, 9, 8] });
+  });
+
+  it("does not add weight when only some sets hit the top", () => {
+    expect(planProgression("bench-press", plan, [s(60, 10, 10, 9)])!.kind).toBe("reps");
+  });
+
+  it("deloads about 10% after three stuck sessions", () => {
+    const p = planProgression("bench-press", plan, [s(70, 7, 6, 6), s(70, 7, 7, 6), s(70, 8, 7, 6)])!;
+    expect(p).toMatchObject({ kind: "deload", weightKg: 62.5 });
+  });
+
+  it("does not deload while reps are still climbing", () => {
+    expect(planProgression("bench-press", plan, [s(70, 8, 7, 7), s(70, 7, 7, 6), s(70, 7, 6, 6)])!.kind).toBe("reps");
+  });
+
+  it("has nothing to suggest without history", () => {
+    expect(planProgression("bench-press", plan, [])).toBeNull();
+  });
+});
+
+describe("PR replay", () => {
+  it("treats the first session as a baseline and flags later bests", () => {
+    const ordered = [set("w1", 0, 60, 8), set("w1", 1, 65, 5), set("w2", 0, 62.5, 8), set("w2", 1, 70, 3)];
+    const flags = replayPrs(ordered);
+    expect(flags.get(ordered[0].id)).toBeNull();
+    expect(flags.get(ordered[1].id)).toBeNull();
+    expect(flags.get(ordered[2].id)).toBe("e1rm");
+    expect(flags.get(ordered[3].id)).toBe("weight");
   });
 });

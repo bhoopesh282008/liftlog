@@ -5,9 +5,19 @@ import { Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/components/toast";
 import { LineChart } from "@/components/ui";
-import { addDays, dateKey, formatShort, parseKey } from "@/lib/dates";
+import { addDays, dateKey, formatShort, parseKey, weekStart } from "@/lib/dates";
 import { alive, db, PROFILE_ID } from "@/lib/db";
-import { adherence, lastNDays, weeklyWeightAverages } from "@/lib/progress-logic";
+import { MUSCLES } from "@/lib/data/exercises";
+import {
+  adherence,
+  dailyTotals,
+  estimateMaintenance,
+  lastNDays,
+  setsPerMuscle,
+  weekStreak,
+  weeklyIntake,
+  weeklyWeightAverages,
+} from "@/lib/progress-logic";
 import { logWeight } from "@/lib/repo";
 import { targetWeeklyGainKg, weeklyTrendKg } from "@/lib/targets";
 import { e1rm, e1rmHistory, formatKg } from "@/lib/workout-logic";
@@ -32,6 +42,7 @@ export function ProgressScreen() {
       workouts: alive(workouts),
       sets: alive(sets),
       exercises: new Map(alive(exercises).map((e) => [e.id, e.name])),
+      muscleOf: new Map(alive(exercises).map((e) => [e.id, e.muscle])),
       entries: alive(entries),
       targets: alive(targets).sort((a, b) => a.date.localeCompare(b.date) || a.updatedAt - b.updatedAt),
       pace: profile?.pace ?? "standard",
@@ -83,6 +94,17 @@ export function ProgressScreen() {
   const calorieHits = week.filter((d) => d.caloriesHit).length;
   const current = data.targets.at(-1);
 
+  // Consistency and muscle balance
+  const trainedDates = data.workouts.map((w) => w.date);
+  const streak = weekStreak(trainedDates, today);
+  const thisWeek = data.workouts.filter((w) => w.date >= weekStart(today)).length;
+  const muscleSets = setsPerMuscle(data.sets, data.workouts, data.muscleOf, addDays(today, -6), today);
+
+  // Intake
+  const totals = dailyTotals(data.entries);
+  const intake = weeklyIntake(totals, since, today);
+  const maintenance = estimateMaintenance(totals, data.weights, today);
+
   return (
     <div className="space-y-4 px-4 pt-5">
       <header>
@@ -131,6 +153,67 @@ export function ProgressScreen() {
             </p>
           </>
         )}
+      </section>
+
+      <section className="card p-4">
+        <div className="mb-3 flex items-baseline justify-between gap-2">
+          <h2 className="font-semibold">Consistency</h2>
+          <span className="num text-xs text-muted">
+            {thisWeek} this week{streak > 0 && <> · <b className="text-accent">{streak}-week streak</b></>}
+          </span>
+        </div>
+        <TrainingCalendar dates={new Set(trainedDates)} today={today} />
+        <p className="mt-2 text-xs text-faint">Last 16 weeks. A streak counts weeks in a row with 2 or more workouts.</p>
+      </section>
+
+      <section className="card p-4">
+        <div className="mb-3 flex items-baseline justify-between gap-2">
+          <h2 className="font-semibold">Sets per muscle</h2>
+          <span className="text-xs text-muted">Last 7 days</span>
+        </div>
+        <MuscleBars counts={muscleSets} />
+        <p className="mt-3 text-xs text-faint">About 10–20 hard sets a week per muscle (shaded) is a good range for growth.</p>
+      </section>
+
+      <section className="card p-4">
+        <div className="mb-3 flex items-baseline justify-between gap-2">
+          <h2 className="font-semibold">Calories eaten</h2>
+          <span className="text-xs text-muted">Weekly average of logged days</span>
+        </div>
+        <LineChart
+          points={intake.map((w) => ({ date: w.date, value: w.kcal }))}
+          goal={current ? { from: current.calories, to: current.calories } : undefined}
+          color="var(--accent)"
+        />
+        {intake.length > 0 && (
+          <p className="num mt-2 text-sm text-muted">
+            This week: {intake.at(-1)!.kcal.toLocaleString()} kcal and {intake.at(-1)!.protein} g protein a day
+            {current ? ` · target ${current.calories.toLocaleString()} (dashed)` : ""}
+          </p>
+        )}
+        <div className="mt-3 rounded-2xl bg-surface-2 p-3 text-sm">
+          {maintenance ? (
+            <>
+              <p>
+                Your real maintenance is about <b className="num">{maintenance.kcal.toLocaleString()} kcal</b>
+                {current && (
+                  <span className="text-muted">
+                    {" "}
+                    (target is {current.calories >= maintenance.kcal ? "+" : "−"}
+                    {Math.abs(current.calories - maintenance.kcal)})
+                  </span>
+                )}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                From {maintenance.loggedDays} logged days averaging {maintenance.intake.toLocaleString()} kcal while your weight moved{" "}
+                {maintenance.trend >= 0 ? "+" : ""}
+                {maintenance.trend.toFixed(2)} kg/week. Days you skip logging can make this read low.
+              </p>
+            </>
+          ) : (
+            <p className="text-muted">Log food on 10 of the last 21 days and weigh in 4 times to see your real maintenance calories.</p>
+          )}
+        </div>
       </section>
 
       <section className="card p-4">
@@ -218,5 +301,58 @@ function WeighIn({ latestToday }: { latestToday: number | null }) {
         Save
       </button>
     </form>
+  );
+}
+
+// GitHub-style grid: one column per week (oldest left), Monday at the top.
+function TrainingCalendar({ dates, today }: { dates: Set<string>; today: string }) {
+  const weeks = 16;
+  const start = addDays(weekStart(today), -(weeks - 1) * 7);
+  return (
+    <div className="flex gap-[3px]" role="img" aria-label={`Training days over the last ${weeks} weeks`}>
+      {Array.from({ length: weeks }, (_, w) => (
+        <div key={w} className="flex flex-1 flex-col gap-[3px]">
+          {Array.from({ length: 7 }, (_, d) => {
+            const day = addDays(start, w * 7 + d);
+            const future = day > today;
+            return (
+              <span
+                key={d}
+                title={day}
+                className={`aspect-square w-full rounded-[3px] ${future ? "bg-transparent" : dates.has(day) ? "bg-accent" : "bg-track"} ${day === today ? "ring-1 ring-text/40" : ""}`}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MuscleBars({ counts }: { counts: Map<string, number> }) {
+  const max = 24;
+  return (
+    <ul className="space-y-2.5">
+      {MUSCLES.map((m) => {
+        const n = counts.get(m) ?? 0;
+        const low = n < 10;
+        return (
+          <li key={m} className="flex items-center gap-3 text-sm">
+            <span className="w-20 shrink-0">{m}</span>
+            <span className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-track">
+              <span className="absolute inset-y-0 bg-accent-soft" style={{ left: `${(10 / max) * 100}%`, width: `${(10 / max) * 100}%` }} />
+              <span
+                className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500"
+                style={{ width: `${Math.min(100, (n / max) * 100)}%`, background: low ? "var(--pr)" : "var(--accent)" }}
+              />
+            </span>
+            <span className={`num w-14 shrink-0 text-right ${low ? "text-pr" : ""}`}>
+              {n}
+              {low && " · low"}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

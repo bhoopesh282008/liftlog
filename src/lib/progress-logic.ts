@@ -1,5 +1,6 @@
-import { addDays, weekStart } from "./dates";
-import type { FoodEntry, Macros, Target, WeightEntry } from "./types";
+import { addDays, daysBetween, weekStart } from "./dates";
+import { weeklyTrendKg } from "./targets";
+import type { FoodEntry, Macros, Target, WeightEntry, Workout, WorkoutSet } from "./types";
 
 export function entryTotals(e: Pick<FoodEntry, keyof Macros | "servings">): Macros {
   return {
@@ -77,4 +78,83 @@ export function adherence(
 
 export function lastNDays(today: string, n: number): string[] {
   return Array.from({ length: n }, (_, i) => addDays(today, i - n + 1));
+}
+
+// ---------- Training consistency ----------
+
+// Weeks in a row (Mon–Sun) with at least `minPerWeek` workouts. The current
+// week only counts once it qualifies, so a quiet Monday never breaks a streak.
+export function weekStreak(workoutDates: string[], today: string, minPerWeek = 2): number {
+  const perWeek = new Map<string, number>();
+  for (const d of workoutDates) perWeek.set(weekStart(d), (perWeek.get(weekStart(d)) ?? 0) + 1);
+  let week = weekStart(today);
+  if ((perWeek.get(week) ?? 0) < minPerWeek) week = addDays(week, -7);
+  let streak = 0;
+  while ((perWeek.get(week) ?? 0) >= minPerWeek) {
+    streak++;
+    week = addDays(week, -7);
+  }
+  return streak;
+}
+
+// Working sets per muscle group between two dates (inclusive).
+export function setsPerMuscle(
+  sets: Pick<WorkoutSet, "workoutId" | "exerciseId">[],
+  workouts: Pick<Workout, "id" | "date">[],
+  muscleOf: Map<string, string>,
+  from: string,
+  to: string,
+): Map<string, number> {
+  const inRange = new Set(workouts.filter((w) => w.date >= from && w.date <= to).map((w) => w.id));
+  const out = new Map<string, number>();
+  for (const s of sets) {
+    if (!inRange.has(s.workoutId)) continue;
+    const m = muscleOf.get(s.exerciseId);
+    if (m) out.set(m, (out.get(m) ?? 0) + 1);
+  }
+  return out;
+}
+
+// ---------- Intake ----------
+
+export function dailyTotals(entries: FoodEntry[]): Map<string, Macros> {
+  const byDay = new Map<string, FoodEntry[]>();
+  for (const e of entries) byDay.set(e.date, [...(byDay.get(e.date) ?? []), e]);
+  return new Map([...byDay.entries()].map(([d, list]) => [d, sumMacros(list)]));
+}
+
+// Weekly averages over the days that were logged (unlogged days are unknown,
+// not zero).
+export function weeklyIntake(totals: Map<string, Macros>, from: string, to: string) {
+  const weeks = new Map<string, Macros[]>();
+  for (const [d, m] of totals) {
+    if (d < from || d > to) continue;
+    weeks.set(weekStart(d), [...(weeks.get(weekStart(d)) ?? []), m]);
+  }
+  return [...weeks.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, list]) => ({
+      date,
+      kcal: Math.round(list.reduce((a, m) => a + m.kcal, 0) / list.length),
+      protein: Math.round(list.reduce((a, m) => a + m.protein, 0) / list.length),
+      days: list.length,
+    }));
+}
+
+// Real-world maintenance: what you ate on average, minus the energy that went
+// into (or came out of) body weight. Needs steady logging to be trustworthy.
+export function estimateMaintenance(
+  totals: Map<string, Macros>,
+  weights: Pick<WeightEntry, "date" | "kg">[],
+  today: string,
+  windowDays = 21,
+): { kcal: number; intake: number; trend: number; loggedDays: number } | null {
+  const from = addDays(today, -windowDays + 1);
+  const logged = [...totals.entries()].filter(([d, m]) => d >= from && d <= today && m.kcal > 0);
+  const w = weights.filter((x) => x.date >= from && x.date <= today).sort((a, b) => a.date.localeCompare(b.date));
+  if (logged.length < 10 || w.length < 4 || daysBetween(w[0].date, w[w.length - 1].date) < 10) return null;
+  const intake = logged.reduce((a, [, m]) => a + m.kcal, 0) / logged.length;
+  const trend = weeklyTrendKg(w)!;
+  const kcal = Math.round((intake - (trend * 7700) / 7) / 50) * 50;
+  return { kcal, intake: Math.round(intake), trend, loggedDays: logged.length };
 }

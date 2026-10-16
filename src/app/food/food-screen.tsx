@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { Barcode, BookmarkPlus, ChevronLeft, ChevronRight, Plus, Search, Sparkles, X } from "lucide-react";
+import { Barcode, BookmarkPlus, ChefHat, ChevronLeft, ChevronRight, Copy, Plus, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/toast";
 import { Bar } from "@/components/ui";
@@ -9,10 +9,12 @@ import { addDays, dateKey, formatDay } from "@/lib/dates";
 import { alive, db } from "@/lib/db";
 import { searchLocal, searchOnline } from "@/lib/food-search";
 import { entryTotals, sumMacros, targetOn } from "@/lib/progress-logic";
-import { ensureFood, logFood, logSavedMeal, mealForNow, remove, save, saveMealFromEntries, undoAdjustment } from "@/lib/repo";
+import { copyEntries, ensureFood, logFood, logSavedMeal, mealForNow, remove, save, saveMealFromEntries, undoAdjustment } from "@/lib/repo";
 import type { Food, FoodEntry, Meal, SavedMeal } from "@/lib/types";
 import { BarcodeScanner } from "./barcode-scanner";
 import { AddFoodSheet, CustomFoodSheet, type FoodTarget, MEALS, NameSheet, sourceLabel } from "./food-sheets";
+import { HabitsCard } from "./habits-card";
+import { RecipeSheet } from "./recipe-sheet";
 
 const kcal = (n: number) => Math.round(n).toLocaleString();
 const g = (n: number) => `${Math.round(n)}`;
@@ -25,6 +27,7 @@ export function FoodScreen() {
   const [scanning, setScanning] = useState(false);
   const [custom, setCustom] = useState<{ name: string; barcode?: string } | null>(null);
   const [savingMeal, setSavingMeal] = useState<FoodEntry[] | null>(null);
+  const [recipe, setRecipe] = useState<{ food: Food | null } | null>(null);
   const [defaultMeal, setDefaultMeal] = useState<Meal>(() => mealForNow());
   const toast = useToast();
 
@@ -76,6 +79,12 @@ export function FoodScreen() {
   if (!data) return null;
 
   const dayEntries = data.entries.filter((e) => e.date === date).sort((a, b) => a.loggedAt - b.loggedAt);
+  const prevEntries = data.entries.filter((e) => e.date === addDays(date, -1)).sort((a, b) => a.loggedAt - b.loggedAt);
+  const prevLabel = date === dateKey() ? "yesterday" : "the day before";
+  const copy = async (entries: FoodEntry[], what: string) => {
+    const ids = await copyEntries(entries, date);
+    toast(`Copied ${what}`, { label: "Undo", run: () => ids.forEach((id) => void remove("foodEntries", id)) });
+  };
   const totals = sumMacros(dayEntries);
   const t = targetOn(date, data.targets);
   const searching = query.trim().length > 0;
@@ -107,7 +116,7 @@ export function FoodScreen() {
 
   const relog = (e: FoodEntry): Food => {
     const stored = data.foods.find((f) => f.id === e.foodId);
-    return stored ?? { id: e.foodId, name: e.name, serving: e.serving, servingGrams: null, kcal: e.kcal, protein: e.protein, carbs: e.carbs, fat: e.fat, source: e.foodId.startsWith("curated:") ? "curated" : "user", updatedAt: 0 };
+    return stored ?? { id: e.foodId, name: e.name, serving: e.serving, servingGrams: null, kcal: e.kcal, protein: e.protein, carbs: e.carbs, fat: e.fat, source: e.foodId.startsWith("indb:") ? "indb" : e.foodId.startsWith("curated:") ? "curated" : "user", updatedAt: 0 };
   };
 
   return (
@@ -183,6 +192,8 @@ export function FoodScreen() {
         </section>
       )}
 
+      <HabitsCard date={date} />
+
       <div className="sticky top-0 z-10 -mx-4 mb-3 bg-bg/90 px-4 py-2 backdrop-blur-lg">
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -228,9 +239,17 @@ export function FoodScreen() {
           <button className="btn mt-4 w-full" onClick={() => setCustom({ name: query.trim() })}>
             <Plus size={18} /> Create “{query.trim()}”
           </button>
+          <button className="btn btn-ghost mt-1 w-full" onClick={() => setRecipe({ food: null })}>
+            <ChefHat size={18} /> Build a recipe instead
+          </button>
         </div>
       ) : (
         <div className="animate-fade">
+          {dayEntries.length === 0 && prevEntries.length > 0 && (
+            <button className="btn mb-4 w-full" onClick={() => void copy(prevEntries, `food from ${prevLabel}`)}>
+              <Copy size={18} /> Copy everything from {prevLabel} ({prevEntries.length} {prevEntries.length === 1 ? "item" : "items"})
+            </button>
+          )}
           {data.savedMeals.length > 0 && (
             <section className="mb-4">
               <h2 className="label mb-2 px-1">Saved meals · one tap adds to {defaultMeal}</h2>
@@ -287,12 +306,23 @@ export function FoodScreen() {
                       );
                     })}
                   </ul>
+                ) : prevEntries.some((e) => e.meal === value) && dayEntries.length > 0 ? (
+                  <button
+                    className="flex min-h-10 items-center gap-1.5 px-1 text-sm text-muted"
+                    onClick={() => void copy(prevEntries.filter((e) => e.meal === value), `${label.toLowerCase()} from ${prevLabel}`)}
+                  >
+                    <Copy size={15} /> Copy {label.toLowerCase()} from {prevLabel}
+                  </button>
                 ) : (
                   <p className="px-1 pt-1 pb-2 text-sm text-faint">Nothing yet</p>
                 )}
               </section>
             );
           })}
+
+          <button className="btn mt-2 w-full" onClick={() => setRecipe({ food: null })}>
+            <ChefHat size={18} /> New recipe
+          </button>
 
           {recent.length > 0 && (
             <section className="mt-5">
@@ -306,9 +336,23 @@ export function FoodScreen() {
         </div>
       )}
 
+      <RecipeSheet
+        open={!!recipe}
+        recipe={recipe?.food ?? null}
+        onClose={() => setRecipe(null)}
+        onSaved={(food) => {
+          setRecipe(null);
+          setQuery("");
+          setTarget({ kind: "add", food });
+        }}
+      />
       <AddFoodSheet
         target={target}
         defaultMeal={defaultMeal}
+        onEditRecipe={(food) => {
+          setTarget(null);
+          setRecipe({ food });
+        }}
         onClose={() => setTarget(null)}
         onAdd={add}
         onUpdate={async (entry, servings, meal) => {
