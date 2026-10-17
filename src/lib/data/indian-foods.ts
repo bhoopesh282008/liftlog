@@ -150,6 +150,7 @@ const ROWS: Row[] = [
   ["chai", "Chai with milk and sugar", "1 cup (150 ml)", 150, 90, 2.5, 13, 3, "tea"],
   ["coffee", "Coffee with milk and sugar", "1 cup (150 ml)", 150, 90, 2.5, 13, 3, "filter coffee"],
   ["whey", "Whey protein", "1 scoop (30 g)", 30, 120, 24, 3, 1.5, "protein powder shake"],
+  ["mass-gainer", "Mass gainer", "1 serving (100 g)", 100, 380, 15, 72, 3, "weight gainer protein powder shake"],
   ["ghee", "Ghee", "1 tsp (5 g)", 5, 45, 0, 0, 5, ""],
   ["oil", "Cooking oil", "1 tsp (5 g)", 5, 45, 0, 0, 5, ""],
   ["butter", "Butter", "1 tsp (5 g)", 5, 36, 0, 0, 4, ""],

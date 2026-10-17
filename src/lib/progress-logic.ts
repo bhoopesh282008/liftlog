@@ -1,6 +1,7 @@
 import { addDays, daysBetween, weekStart } from "./dates";
 import { weeklyTrendKg } from "./targets";
 import type { FoodEntry, Macros, Target, WeightEntry, Workout, WorkoutSet } from "./types";
+import { e1rm } from "./workout-logic";
 
 export function entryTotals(e: Pick<FoodEntry, keyof Macros | "servings">): Macros {
   return {
@@ -55,11 +56,13 @@ export interface DayAdherence {
   caloriesHit: boolean;
 }
 
-// Protein counts as hit at 95% of target; calories within ±10%.
+// Protein counts as hit at 95% of target; calories within ±10% of the
+// day's calorie goal (pass `calorieGoal` for training/rest-day targets).
 export function adherence(
   days: string[],
   entries: FoodEntry[],
   targets: Target[],
+  calorieGoal: (date: string, t: Target) => number = (_, t) => t.calories,
 ): DayAdherence[] {
   const byDay = new Map<string, FoodEntry[]>();
   for (const e of entries) byDay.set(e.date, [...(byDay.get(e.date) ?? []), e]);
@@ -71,7 +74,7 @@ export function adherence(
       date,
       logged: list.length > 0,
       proteinHit: !!t && list.length > 0 && sum.protein >= t.protein * 0.95,
-      caloriesHit: !!t && list.length > 0 && Math.abs(sum.kcal - t.calories) <= t.calories * 0.1,
+      caloriesHit: !!t && list.length > 0 && Math.abs(sum.kcal - calorieGoal(date, t)) <= calorieGoal(date, t) * 0.1,
     };
   });
 }
@@ -157,4 +160,32 @@ export function estimateMaintenance(
   const trend = weeklyTrendKg(w)!;
   const kcal = Math.round((intake - (trend * 7700) / 7) / 50) * 50;
   return { kcal, intake: Math.round(intake), trend, loggedDays: logged.length };
+}
+
+// ---------- Trends side by side ----------
+
+// Best estimated 1RM of one exercise in each week (Monday start), oldest first.
+export function weeklyBestE1rm(exerciseId: string, workouts: Pick<Workout, "id" | "date">[], sets: Pick<WorkoutSet, "workoutId" | "exerciseId" | "weightKg" | "reps">[]) {
+  const dateOf = new Map(workouts.map((w) => [w.id, w.date]));
+  const best = new Map<string, number>();
+  for (const s of sets) {
+    const date = s.exerciseId === exerciseId ? dateOf.get(s.workoutId) : undefined;
+    if (!date) continue;
+    const week = weekStart(date);
+    best.set(week, Math.max(best.get(week) ?? 0, e1rm(s.weightKg, s.reps)));
+  }
+  return [...best.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, v]) => ({ date, value: Math.round(v * 10) / 10 }));
+}
+
+type Point = { date: string; value: number };
+
+// Two weekly series cut to the weeks both have, so charts drawn one above
+// the other line up week for week.
+export function sharedWeeks(a: Point[], b: Point[]): { a: Point[]; b: Point[] } {
+  const inB = new Map(b.map((p) => [p.date, p]));
+  const weeks = a.filter((p) => inB.has(p.date)).map((p) => p.date);
+  const pick = (s: Point[]) => s.filter((p) => weeks.includes(p.date));
+  return { a: pick(a), b: pick(b) };
 }

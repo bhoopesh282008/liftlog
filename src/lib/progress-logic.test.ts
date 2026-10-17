@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "./dates";
-import { dailyTotals, estimateMaintenance, setsPerMuscle, weekStreak, weeklyIntake } from "./progress-logic";
-import type { FoodEntry } from "./types";
+import { adherence, dailyTotals, estimateMaintenance, setsPerMuscle, sharedWeeks, weekStreak, weeklyBestE1rm, weeklyIntake } from "./progress-logic";
+import type { FoodEntry, Target } from "./types";
 
 const entry = (date: string, kcal: number, protein = 0): FoodEntry => ({
   id: `${date}-${kcal}`,
@@ -76,5 +76,50 @@ describe("intake", () => {
   it("needs enough logged days", () => {
     const totals = dailyTotals(days.slice(0, 5).map((d) => entry(d, 2800)));
     expect(estimateMaintenance(totals, days.map((d) => ({ date: d, kg: 70 })), today)).toBeNull();
+  });
+});
+
+describe("adherence", () => {
+  const t: Target = { id: "t", date: "2026-10-01", calories: 2000, protein: 140, carbs: 250, fat: 60, source: "initial", reason: "", updatedAt: 0 };
+  const days = ["2026-10-13", "2026-10-14"];
+  const entries = [entry("2026-10-13", 2150, 140), entry("2026-10-14", 1900, 100)];
+
+  it("counts protein goal days at 95% and calories within 10%", () => {
+    const week = adherence(days, entries, [t]);
+    expect(week.map((d) => d.proteinHit)).toEqual([true, false]);
+    expect(week.map((d) => d.caloriesHit)).toEqual([true, true]);
+  });
+
+  it("judges calories against the day's own goal", () => {
+    // A rest day at 1,700: 2,150 is now well over.
+    const week = adherence(days, entries, [t], (date, base) => (date === "2026-10-13" ? 1700 : base.calories));
+    expect(week.map((d) => d.caloriesHit)).toEqual([false, true]);
+  });
+});
+
+describe("trends side by side", () => {
+  const workouts = [
+    { id: "a", date: "2026-10-05" },
+    { id: "b", date: "2026-10-07" },
+    { id: "c", date: "2026-10-13" },
+  ];
+  const sets = [
+    { workoutId: "a", exerciseId: "bench", weightKg: 60, reps: 5 },
+    { workoutId: "b", exerciseId: "bench", weightKg: 62.5, reps: 5 },
+    { workoutId: "b", exerciseId: "squat", weightKg: 100, reps: 5 },
+    { workoutId: "c", exerciseId: "bench", weightKg: 60, reps: 8 },
+  ];
+
+  it("keeps the best e1RM of each week for one lift", () => {
+    expect(weeklyBestE1rm("bench", workouts, sets)).toEqual([
+      { date: "2026-10-05", value: 72.9 },
+      { date: "2026-10-12", value: 76 },
+    ]);
+  });
+
+  it("cuts two series to the weeks both have", () => {
+    const a = [{ date: "w1", value: 1 }, { date: "w2", value: 2 }, { date: "w3", value: 3 }];
+    const b = [{ date: "w2", value: 20 }, { date: "w3", value: 30 }, { date: "w4", value: 40 }];
+    expect(sharedWeeks(a, b)).toEqual({ a: a.slice(1), b: b.slice(0, 2) });
   });
 });

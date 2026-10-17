@@ -1,38 +1,27 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { Check, Droplet, Minus, Plus } from "lucide-react";
-import { useToast } from "@/components/toast";
+import { Check, Circle, Droplet, Minus, Plus } from "lucide-react";
 import { Bar } from "@/components/ui";
-import { CURATED_FOODS } from "@/lib/data/indian-foods";
-import { alive, db, PROFILE_ID } from "@/lib/db";
-import { logFood, mealForNow, remove, updateDay } from "@/lib/repo";
+import { db, PROFILE_ID } from "@/lib/db";
+import { updateDay } from "@/lib/repo";
+import { GLASS_ML } from "@/lib/training";
+import { useSupplements } from "./supplement-reminder";
 
-const WHEY_ID = "curated:whey";
-const GLASS_ML = 250;
-
-// Quick taps for the daily basics: water, creatine, and a whey scoop
-// (which is logged as food so its protein counts).
-export function HabitsCard({ date }: { date: string }) {
-  const toast = useToast();
+// Quick taps for the daily basics: water and the supplements you take
+// (whey and mass gainer are logged as food so their macros count).
+export function HabitsCard({ date, waterGoal, training }: { date: string; waterGoal?: number; training: boolean }) {
+  const supplements = useSupplements(date, training);
   const data = useLiveQuery(async () => {
-    const [day, profile, entries] = await Promise.all([
-      db.days.get(date),
-      db.profile.get(PROFILE_ID),
-      db.foodEntries.where("date").equals(date).toArray(),
-    ]);
+    const [day, profile] = await Promise.all([db.days.get(date), db.profile.get(PROFILE_ID)]);
     return {
       water: day && !day.deletedAt ? day.waterGlasses : 0,
-      creatine: Boolean(day && !day.deletedAt && day.creatine),
-      goal: profile?.waterGoal ?? 12,
-      whey: alive(entries)
-        .filter((e) => e.foodId === WHEY_ID)
-        .reduce((a, e) => a + e.servings, 0),
+      goal: waterGoal ?? profile?.waterGoal ?? 12,
     };
-  }, [date]);
+  }, [date, waterGoal]);
   if (!data) return null;
 
-  const whey = CURATED_FOODS.find((f) => f.id === WHEY_ID);
+  const due = supplements.data?.due ?? [];
   const litres = (data.water * GLASS_ML) / 1000;
 
   return (
@@ -65,23 +54,24 @@ export function HabitsCard({ date }: { date: string }) {
           <Plus size={18} />
         </button>
       </div>
-      <div className="mt-3 flex gap-2">
-        <button className="chip flex-1 justify-center" data-on={data.creatine} onClick={() => void updateDay(date, { creatine: !data.creatine })}>
-          {data.creatine && <Check size={16} />} Creatine 5 g
-        </button>
-        {whey && (
-          <button
-            className="chip flex-1 justify-center"
-            data-on={data.whey > 0}
-            onClick={async () => {
-              const e = await logFood(whey, 1, mealForNow(), date);
-              toast(`Added a whey scoop (+${whey.protein} g protein)`, { label: "Undo", run: () => void remove("foodEntries", e.id) });
-            }}
-          >
-            <Plus size={16} /> Whey scoop{data.whey > 0 && <span className="num opacity-70">× {data.whey}</span>}
-          </button>
-        )}
-      </div>
+      {due.length > 0 && (
+        <div className="mt-4 border-t border-line pt-3">
+          <p className="label mb-2">Supplements</p>
+          <div className="flex flex-wrap gap-2">
+            {due.map((s) => {
+              const n = supplements.data?.checked.get(s.id) ?? 0;
+              const on = n > 0;
+              return (
+                <button key={s.id} className="chip min-h-11" data-on={on} aria-pressed={on} onClick={() => void supplements.toggle(s)}>
+                  {on ? <Check size={16} strokeWidth={2.6} /> : <Circle size={16} className="text-faint" />}
+                  {s.label}
+                  {n > 1 && <span className="num opacity-70">× {n}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

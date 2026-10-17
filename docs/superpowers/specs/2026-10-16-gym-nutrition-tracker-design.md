@@ -52,7 +52,7 @@ It starts as the user's personal tool. The public may use it later, so it must n
 
 - No social features, sharing, or leaderboards.
 - No AI coach or workout program generator. The user brings their own split.
-- No reminders or notifications at all *(Claude's call)*.
+- No push notifications *(Claude's call)*. In-app reminders, shown as banners or cards inside the app, are allowed *(user decided, 2026-10-17)*.
 - No native iOS or Android apps.
 - No wearable or health-app integrations.
 - No micronutrient tracking beyond calories, protein, carbs, and fat.

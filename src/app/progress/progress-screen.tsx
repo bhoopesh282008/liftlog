@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/components/toast";
 import { LineChart } from "@/components/ui";
+import { builtinFoods } from "@/lib/data/food-sources";
 import { addDays, dateKey, formatShort, parseKey, weekStart } from "@/lib/dates";
 import { alive, db, PROFILE_ID } from "@/lib/db";
 import { MUSCLES } from "@/lib/data/exercises";
@@ -14,15 +15,21 @@ import {
   estimateMaintenance,
   lastNDays,
   setsPerMuscle,
+  sharedWeeks,
   targetOn,
   weekStreak,
+  weeklyBestE1rm,
   weeklyIntake,
   weeklyWeightAverages,
 } from "@/lib/progress-logic";
-import { proteinStreak } from "@/lib/protein";
+import { proteinStreak, vegProteinGuide } from "@/lib/protein";
 import { logWeight } from "@/lib/repo";
-import { targetWeeklyGainKg, weeklyTrendKg } from "@/lib/targets";
+import { bodyOf, MODE_LABELS, modeOf, modeWeeklyChangeKg, weeklyTrendKg } from "@/lib/targets";
+import { dayTarget, isTrainingDay, workoutKcal } from "@/lib/training";
+import type { Target } from "@/lib/types";
 import { e1rm, e1rmHistory, formatKg } from "@/lib/workout-logic";
+
+type Point = { date: string; value: number };
 
 const WEEKS = 8;
 
@@ -47,7 +54,7 @@ export function ProgressScreen() {
       muscleOf: new Map(alive(exercises).map((e) => [e.id, e.muscle])),
       entries: alive(entries),
       targets: alive(targets).sort((a, b) => a.date.localeCompare(b.date) || a.updatedAt - b.updatedAt),
-      pace: profile?.pace ?? "standard",
+      profile,
     };
   }, []);
 
@@ -69,9 +76,10 @@ export function ProgressScreen() {
   const trendWindow = data.weights.filter((w) => w.date >= addDays(today, -28));
   const trend = trendWindow.length >= 3 ? weeklyTrendKg(trendWindow) : null;
   const latest = data.weights.at(-1);
-  const goalPerWeek = latest ? targetWeeklyGainKg(latest.kg, data.pace) : 0;
+  const mode = modeOf(data.profile);
+  const goalPerWeek = latest && data.profile ? modeWeeklyChangeKg({ ...bodyOf(data.profile), weightKg: latest.kg }, mode) : 0;
   const status =
-    trend === null ? null : Math.abs(trend - goalPerWeek) <= Math.max(0.1, goalPerWeek * 0.5) ? "on pace" : trend < goalPerWeek ? "below pace" : "above pace";
+    trend === null ? null : Math.abs(trend - goalPerWeek) <= Math.max(0.1, Math.abs(goalPerWeek) * 0.5) ? "on plan" : trend < goalPerWeek ? "below plan" : "above plan";
   const goalLine = weekly.length >= 2 ? { from: weekly[0].value, to: weekly[0].value + goalPerWeek * (weekly.length - 1) } : undefined;
 
   // Strength
@@ -90,8 +98,17 @@ export function ProgressScreen() {
   const firstBest = selected ? bestSetIn(since, false) : null;
   const lastBest = selected ? bestSetIn(since, true) : null;
 
-  // Nutrition
-  const week = adherence(lastNDays(today, 7), data.entries, data.targets);
+  // Nutrition. Calories are judged against each day's own target
+  // (training or rest day, plus the workout estimate when that's on).
+  const workoutDates = new Set(data.workouts.map((w) => w.date));
+  const plannedDays = data.profile?.trainingDays ?? [];
+  const calorieGoal = (date: string, t: Target) =>
+    dayTarget(t, {
+      training: isTrainingDay(date, workoutDates, plannedDays),
+      plannedPerWeek: plannedDays.length,
+      extraKcal: data.profile?.workoutCalories && latest ? workoutKcal(data.workouts.filter((w) => w.date === date), latest.kg) : 0,
+    }).calories;
+  const week = adherence(lastNDays(today, 7), data.entries, data.targets, calorieGoal);
   const proteinHits = week.filter((d) => d.proteinHit).length;
   const calorieHits = week.filter((d) => d.caloriesHit).length;
   const current = data.targets.at(-1);
@@ -114,6 +131,18 @@ export function ProgressScreen() {
   const proteinHit = proteinDays.filter((p) => p.goal && p.value >= p.goal * 0.95).length;
   const proteinAvg = proteinDays.length ? Math.round(proteinDays.reduce((a, p) => a + p.value, 0) / proteinDays.length) : 0;
   const proteinRun = proteinStreak(totals, data.targets, today);
+
+  // Side by side: weekly series cut to the weeks both have.
+  const proteinVsLift = sharedWeeks(
+    intake.map((w) => ({ date: w.date, value: w.protein })),
+    selected ? weeklyBestE1rm(selected, data.workouts, data.sets).filter((p) => p.date >= weekStart(since)) : [],
+  );
+  const caloriesVsWeight = sharedWeeks(
+    intake.map((w) => ({ date: w.date, value: w.kcal })),
+    weekly,
+  );
+  const guide = vegProteinGuide(builtinFoods());
+  const guideMax = Math.max(...guide.map((g) => g.per100), 1);
 
   return (
     <div className="space-y-4 px-4 pt-5">
@@ -176,7 +205,7 @@ export function ProgressScreen() {
           <div className="mb-3 flex items-baseline justify-between gap-2">
             <h3 className="font-semibold">Weekly average</h3>
             {status && (
-              <span className={`text-xs font-semibold ${status === "on pace" ? "text-accent" : "text-pr"}`}>
+              <span className={`text-xs font-semibold ${status === "on plan" ? "text-accent" : "text-pr"}`}>
                 {trend! >= 0 ? "+" : ""}
                 {trend!.toFixed(2)} kg/wk · {status}
               </span>
@@ -185,7 +214,7 @@ export function ProgressScreen() {
           <LineChart points={weekly} goal={goalLine} />
           <p className="num mt-2 text-sm text-muted">
             {weekly.length >= 2
-              ? `${weekly[0].value.toFixed(1)} → ${weekly.at(-1)!.value.toFixed(1)} kg weekly average · goal +${goalPerWeek.toFixed(2)} kg/wk (dashed)`
+              ? `${weekly[0].value.toFixed(1)} → ${weekly.at(-1)!.value.toFixed(1)} kg weekly average · ${MODE_LABELS[mode].label.toLowerCase()} plan ${goalPerWeek >= 0 ? "+" : "−"}${Math.abs(goalPerWeek).toFixed(2)} kg/wk (dashed)`
               : "Weigh in a few mornings a week. Weekly averages smooth out water swings."}
           </p>
         </section>
@@ -223,13 +252,39 @@ export function ProgressScreen() {
           </div>
           <div className="mt-3 flex justify-between text-sm">
             <span>
-              Protein target hit <b className="num">{proteinHits} of 7</b> days
+              Hit protein goal <b className="num">{proteinHits} of 7</b> days
             </span>
             <span className="text-muted">
               Calories <b className="num">{calorieHits}/7</b>
             </span>
           </div>
-          <p className="mt-1 text-xs text-faint">Top row protein, bottom row calories (within 10%). Outlined days were logged but missed.</p>
+          <p className="mt-1 text-xs text-faint">Top row protein, bottom row calories (within 10% of that day&apos;s target). Outlined days were logged but missed.</p>
+        </section>
+        <section className="card p-4" aria-labelledby="veg-guide">
+          <h3 id="veg-guide" className="font-semibold">
+            Vegetarian protein
+          </h3>
+          <p className="mt-1 text-sm text-muted">Grams of protein per 100 kcal. Higher means more protein for the calories.</p>
+          <ul className="mt-3 space-y-3">
+            {guide.map((g) => (
+              <li key={g.id} className="text-sm">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 truncate">
+                    {g.label}
+                    <span className="num text-xs text-muted">
+                      {" "}
+                      · {Math.round(g.food.protein)} g in {g.food.serving}
+                    </span>
+                  </span>
+                  <span className="num shrink-0 font-medium">{g.per100} g</span>
+                </div>
+                <div className="relative mt-1.5 h-2 overflow-hidden rounded-full bg-track">
+                  <div className="absolute inset-y-0 left-0 rounded-full bg-accent" style={{ width: `${(g.per100 / guideMax) * 100}%` }} />
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-faint">From the built-in food list. Whey is a supplement; the rest are everyday foods.</p>
         </section>
         <section className="card p-4">
           <div className="mb-3 flex items-baseline justify-between gap-2">
@@ -288,7 +343,93 @@ export function ProgressScreen() {
           </section>
         )}
       </section>
+      <section aria-labelledby="g-side" className="space-y-3 pb-2">
+        <div className="px-1 pt-4">
+          <h2 id="g-side" className="text-xl font-semibold tracking-[-0.01em]">
+            Side by side
+          </h2>
+          <p className="mt-0.5 text-sm text-muted">Weekly numbers lined up so you can compare them. Moving together doesn&apos;t mean one caused the other.</p>
+        </div>
+        <TrendPair
+          title="Protein and strength"
+          top={{ label: "Protein, daily average", short: "Protein", unit: "g", color: "var(--accent)", points: proteinVsLift.a }}
+          bottom={{ label: `Best est. 1-rep max${selected ? `, ${data.exercises.get(selected) ?? "lift"}` : ""}`, short: "Est. 1RM", unit: "kg", color: "var(--pr)", points: proteinVsLift.b }}
+          empty="Needs 2 or more weeks with both food logged and this lift trained."
+        />
+        <TrendPair
+          title="Calories and body weight"
+          top={{ label: "Calories, daily average", short: "Calories", unit: "kcal", color: "var(--accent)", points: caloriesVsWeight.a }}
+          bottom={{ label: "Body weight, weekly average", short: "Weight", unit: "kg", color: "var(--muted)", points: caloriesVsWeight.b }}
+          empty="Needs 2 or more weeks with both food logged and a weigh-in."
+        />
+      </section>
     </div>
+  );
+}
+
+interface Series {
+  label: string;
+  short: string;
+  unit: string;
+  color: string;
+  points: Point[];
+}
+
+// Two weekly series stacked on the same weeks, each on its own scale (never
+// one chart with two y-axes), with a table of the numbers.
+function TrendPair({ title, top, bottom, empty }: { title: string; top: Series; bottom: Series; empty: string }) {
+  const n = (v: number) => (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1));
+  const weeks = top.points.map((p) => p.date);
+  return (
+    <section className="card p-4">
+      <h3 className="font-semibold">{title}</h3>
+      {weeks.length < 2 ? (
+        <p className="mt-2 text-sm text-muted">{empty}</p>
+      ) : (
+        <>
+          {[top, bottom].map((s) => (
+            <div key={s.label} className="mt-3">
+              <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
+                <span className="min-w-0 truncate text-muted">{s.label}</span>
+                <span className="num shrink-0">
+                  <b className="font-semibold">{n(s.points.at(-1)!.value)}</b> {s.unit}
+                </span>
+              </div>
+              <LineChart points={s.points} height={56} color={s.color} />
+            </div>
+          ))}
+          <div className="num mt-1.5 flex justify-between text-[11px] text-faint">
+            <span>Week of {formatShort(weeks[0])}</span>
+            <span>Week of {formatShort(weeks.at(-1)!)}</span>
+          </div>
+          <details className="mt-2 text-sm">
+            <summary className="flex min-h-10 cursor-pointer list-none items-center text-muted [&::-webkit-details-marker]:hidden">Show weekly numbers</summary>
+            <table className="num w-full text-left text-xs">
+              <thead className="text-muted">
+                <tr>
+                  <th className="py-1 font-normal">Week of</th>
+                  <th className="py-1 text-right font-normal">
+                    {top.short} ({top.unit})
+                  </th>
+                  <th className="py-1 text-right font-normal">
+                    {bottom.short} ({bottom.unit})
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {weeks.map((w, i) => (
+                  <tr key={w} className="border-t border-line">
+                    <td className="py-1">{formatShort(w)}</td>
+                    <td className="py-1 text-right">{n(top.points[i].value)}</td>
+                    <td className="py-1 text-right">{n(bottom.points[i].value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        </>
+      )}
+    </section>
   );
 }
 

@@ -11,24 +11,23 @@ const DIETS: { value: Diet; label: string }[] = [
   { value: "nonveg", label: "Non-veg" },
 ];
 
-// When protein is short, a row of foods sized to close the gap. Tapping one
-// opens it ready to add, with the servings filled in.
+// When protein is short, 3 foods that fit today's remaining protein and
+// calories, best protein per 100 kcal first. Tapping one opens it ready to
+// add, with the servings filled in.
 export function ProteinIdeas({
   gap,
   kcalLeft,
   candidates,
-  useCounts,
   diet,
   onPick,
 }: {
   gap: number;
   kcalLeft: number;
   candidates: Food[];
-  useCounts: Map<string, number>;
   diet: Diet | undefined;
   onPick: (food: Food, servings: number) => void;
 }) {
-  const ideas = proteinIdeas(gap, kcalLeft, candidates, useCounts, diet);
+  const ideas = proteinIdeas(gap, kcalLeft, candidates, diet);
   if (gap < 10) return null;
 
   return (
@@ -52,7 +51,7 @@ export function ProteinIdeas({
           ))}
         </div>
       </div>
-      <p className="-mt-1 mb-2 px-1 text-xs text-muted">One meal&apos;s worth each, up to about 40 g at a time.</p>
+      <p className="-mt-1 mb-2 px-1 text-xs text-muted">Fits your calories left · most protein per 100 kcal first</p>
       {ideas.length === 0 ? (
         <p className="px-1 text-sm text-muted">No good matches left for today&apos;s calories. Search for a lean protein below.</p>
       ) : (
@@ -69,6 +68,7 @@ export function ProteinIdeas({
                 {i.servings > 1 ? `${i.servings} × ` : ""}
                 {i.food.serving} · {Math.round(i.kcal)} kcal
               </span>
+              <span className="num text-xs text-muted">{i.per100} g per 100 kcal</span>
               <span className="mt-2 flex items-center gap-1 text-xs font-medium text-muted">
                 <Plus size={14} /> Add
               </span>

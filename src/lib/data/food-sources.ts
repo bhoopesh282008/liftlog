@@ -22,6 +22,9 @@ export interface BuiltinFood {
   // Everyday dishes (everything curated, and INDB rows standing in for one)
   // rank above INDB's long tail of cookbook recipes.
   common: boolean;
+  // The curated id an INDB row stands in for, so fixed picks like the
+  // quick-add chips find it.
+  replaces?: string;
 }
 
 const curated = (): BuiltinFood[] => CURATED_FOODS.map((food) => ({ food, text: curatedSearchText(food), common: true }));
@@ -45,7 +48,7 @@ function withIndb(): BuiltinFood[] {
       updatedAt: 0,
     };
     const text = [name, indbName, old ? curatedSearchText(old) : ""].join(" ").toLowerCase();
-    return { food, text, common: !!old };
+    return { food, text, common: !!old, replaces: old?.id };
   });
   return [...indb, ...curated().filter((b) => !replaced.has(b.food.id))];
 }

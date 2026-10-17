@@ -1,15 +1,17 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { Barcode, BookmarkPlus, ChefHat, ChevronLeft, ChevronRight, Copy, Plus, Search, Sparkles, X } from "lucide-react";
+import { Barcode, BookmarkPlus, ChefHat, ChevronLeft, ChevronRight, Copy, Info, Plus, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/toast";
-import { addDays, dateKey, formatDay } from "@/lib/dates";
+import { addDays, dateKey, formatDay, parseKey } from "@/lib/dates";
 import { builtinFoods } from "@/lib/data/food-sources";
 import { alive, db, PROFILE_ID } from "@/lib/db";
 import { searchLocal, searchOnline } from "@/lib/food-search";
 import { dailyTotals, entryTotals, sumMacros, targetOn } from "@/lib/progress-logic";
-import { proteinStreak } from "@/lib/protein";
+import { lopsidedMeal, MEAL_BAND, mealBand, proteinPer100Kcal, proteinStreak, quickAddFoods } from "@/lib/protein";
+import { bodyOf, maintenanceCalories, modeOf, perKgFor } from "@/lib/targets";
+import { dayTarget, isTrainingDay, waterGoalGlasses, workoutKcal, workoutPhase } from "@/lib/training";
 import { copyEntries, ensureFood, logFood, logSavedMeal, mealForNow, remove, save, saveMealFromEntries, undoAdjustment } from "@/lib/repo";
 import type { Food, FoodEntry, Meal, SavedMeal } from "@/lib/types";
 import { BarcodeScanner } from "./barcode-scanner";
@@ -18,6 +20,8 @@ import { HabitsCard } from "./habits-card";
 import { ProteinCard } from "./protein-card";
 import { ProteinIdeas } from "./protein-ideas";
 import { RecipeSheet } from "./recipe-sheet";
+import { SupplementReminder } from "./supplement-reminder";
+import { WorkoutCard } from "./workout-card";
 
 const kcal = (n: number) => Math.round(n).toLocaleString();
 const g = (n: number) => `${Math.round(n)}`;
@@ -35,7 +39,7 @@ export function FoodScreen() {
   const toast = useToast();
 
   const data = useLiveQuery(async () => {
-    const [entries, foods, savedMeals, targets, unseen, profile, weights] = await Promise.all([
+    const [entries, foods, savedMeals, targets, unseen, profile, weights, workouts] = await Promise.all([
       db.foodEntries.toArray(),
       db.foods.toArray(),
       db.savedMeals.toArray(),
@@ -43,6 +47,7 @@ export function FoodScreen() {
       db.meta.get("unseenAdjustment"),
       db.profile.get(PROFILE_ID),
       db.weights.toArray(),
+      db.workouts.toArray(),
     ]);
     const liveTargets = alive(targets);
     return {
@@ -51,8 +56,14 @@ export function FoodScreen() {
       savedMeals: alive(savedMeals),
       targets: liveTargets,
       adjustment: liveTargets.find((t) => t.id === unseen?.value) ?? null,
-      perKg: profile?.proteinPerKg,
+      perKg: perKgFor(profile),
+      mode: modeOf(profile),
+      body: profile ? bodyOf(profile) : null,
       diet: profile?.diet,
+      trainingDays: profile?.trainingDays ?? [],
+      workoutCalories: Boolean(profile?.workoutCalories),
+      workouts: alive(workouts),
+      now: Date.now(),
       latestKg: alive(weights).sort((a, b) => a.date.localeCompare(b.date)).at(-1)?.kg ?? null,
     };
   }, []);
@@ -67,6 +78,8 @@ export function FoodScreen() {
     for (const e of data?.entries ?? []) m.set(e.foodId, (m.get(e.foodId) ?? 0) + 1);
     return m;
   }, [data]);
+
+  const quick = useMemo(() => quickAddFoods(builtinFoods(), data?.diet), [data?.diet]);
 
   const localResults = useMemo(() => (data && query.trim() ? searchLocal(query, data.foods, useCounts) : []), [data, query, useCounts]);
 
@@ -99,7 +112,22 @@ export function FoodScreen() {
     toast(`Copied ${what}`, { label: "Undo", run: () => ids.forEach((id) => void remove("foodEntries", id)) });
   };
   const totals = sumMacros(dayEntries);
-  const t = targetOn(date, data.targets);
+  const base = targetOn(date, data.targets);
+  const dayWorkouts = data.workouts.filter((w) => w.date === date);
+  const plannedToday = data.trainingDays.includes(parseKey(date).getDay());
+  const training = isTrainingDay(date, new Set(data.workouts.map((w) => w.date)), data.trainingDays);
+  const extraKcal = data.workoutCalories && data.latestKg ? workoutKcal(dayWorkouts, data.latestKg) : 0;
+  const t = base ? dayTarget(base, { training, plannedPerWeek: data.trainingDays.length, extraKcal }) : null;
+  const dayNote = t
+    ? [
+        t.shift > 0 ? `Training day: +${t.shift} kcal, all carbs` : t.shift < 0 ? `Rest day: −${-t.shift} kcal from carbs` : training ? "Training day" : "",
+        t.workoutKcal ? `+${t.workoutKcal} kcal for today's workout (estimate)` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
+  const phase = date === dateKey() ? workoutPhase(data.now, dayWorkouts, plannedToday) : null;
+  const maintenance = data.body && data.latestKg ? Math.round(maintenanceCalories({ ...data.body, weightKg: data.latestKg })) : null;
   const searching = query.trim().length > 0;
 
   const recent = (() => {
@@ -121,6 +149,15 @@ export function FoodScreen() {
     setDefaultMeal(meal);
     toast(`Added ${food.name}`, { label: "Undo", run: () => void remove("foodEntries", e.id) });
   };
+
+  const quickAdd = async (food: Food, servings: number, label: string) => {
+    const e = await logFood(food, servings, defaultMeal, date);
+    toast(`Added ${label} to ${defaultMeal}`, { label: "Undo", run: () => void remove("foodEntries", e.id) });
+  };
+
+  const perMeal = new Map<Meal, number>();
+  for (const e of dayEntries) perMeal.set(e.meal, (perMeal.get(e.meal) ?? 0) + entryTotals(e).protein);
+  const lopsided = lopsidedMeal(perMeal);
 
   const quickMeal = async (m: SavedMeal) => {
     const ids = await logSavedMeal(m, defaultMeal, date);
@@ -177,13 +214,33 @@ export function FoodScreen() {
             streak={date === dateKey() ? proteinStreak(dailyTotals(data.entries), data.targets, date) : 0}
             perKg={data.perKg}
             weightKg={data.latestKg}
+            mode={data.mode}
+            maintenance={maintenance}
+            isToday={date === dateKey()}
+            dayNote={dayNote}
           />
+          {date === dateKey() && <SupplementReminder date={date} training={training} />}
+          {quick.length > 0 && (
+            <section className="mb-4" aria-labelledby="quick-add">
+              <h2 id="quick-add" className="label mb-2 px-1">
+                Quick add · one tap adds to {defaultMeal}
+              </h2>
+              <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
+                {quick.map((q) => (
+                  <button key={q.id} className="chip shrink-0" onClick={() => void quickAdd(q.food, q.servings, q.label)}>
+                    {q.label}
+                    <span className="num text-xs text-muted">+{g(q.food.protein * q.servings)} g</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+          {phase && <WorkoutCard phase={phase} diet={data.diet} onPick={(food, servings) => setTarget({ kind: "add", food, servings })} />}
           {date === dateKey() && (
             <ProteinIdeas
               gap={t.protein - totals.protein}
               kcalLeft={t.calories - totals.kcal}
               candidates={candidates}
-              useCounts={useCounts}
               diet={data.diet}
               onPick={(food, servings) => setTarget({ kind: "add", food, servings })}
             />
@@ -191,7 +248,7 @@ export function FoodScreen() {
         </>
       )}
 
-      <HabitsCard date={date} />
+      <HabitsCard date={date} training={training} waterGoal={data.latestKg ? waterGoalGlasses(data.latestKg, training) : undefined} />
 
       <div className="sticky top-0 z-10 -mx-4 mb-3 bg-bg/90 px-4 py-2 backdrop-blur-lg">
         <div className="flex gap-2">
@@ -263,9 +320,20 @@ export function FoodScreen() {
             </section>
           )}
 
+          {lopsided && (
+            <p className="mb-3 flex gap-2 rounded-2xl bg-surface-2 p-3 text-sm text-muted">
+              <Info size={16} className="mt-0.5 shrink-0" />
+              <span>
+                {MEALS.find((m) => m.value === lopsided.meal)!.label} holds {Math.round(lopsided.share * 100)}% of {date === dateKey() ? "today's" : "the day's"} protein. About {MEAL_BAND.min}–
+                {MEAL_BAND.max} g at each meal works better for building muscle.
+              </span>
+            </p>
+          )}
+
           {MEALS.map(({ value, label }) => {
             const list = dayEntries.filter((e) => e.meal === value);
             const sum = sumMacros(list);
+            const band = mealBand(sum.protein);
             return (
               <section key={value} className="mb-3">
                 <div className="flex items-center justify-between px-1">
@@ -274,7 +342,13 @@ export function FoodScreen() {
                     {list.length > 0 && (
                       <>
                         <span className="num mr-1 text-sm text-muted">
-                          {kcal(sum.kcal)} kcal · {g(sum.protein)} g
+                          {kcal(sum.kcal)} kcal · <span className={band === "in" ? "font-medium text-accent" : band === "high" ? "text-text" : ""}>{g(sum.protein)} g</span>
+                          {band === "low" && (
+                            <span className="text-faint">
+                              {" "}
+                              / {MEAL_BAND.min}–{MEAL_BAND.max}
+                            </span>
+                          )}
                         </span>
                         <button className="flex size-10 items-center justify-center text-faint" onClick={() => setSavingMeal(list)} aria-label={`Save ${label} as a meal`}>
                           <BookmarkPlus size={18} />
@@ -418,6 +492,7 @@ function ResultList({ foods, onPick }: { foods: Food[]; onPick: (f: Food) => voi
             </span>
             <span className="num shrink-0 text-right text-sm">
               {g(f.protein)} g<span className="block text-xs text-muted">{kcal(f.kcal)} kcal</span>
+              <span className="block text-[11px] text-faint">{proteinPer100Kcal(f)} g/100 kcal</span>
             </span>
           </button>
         </li>

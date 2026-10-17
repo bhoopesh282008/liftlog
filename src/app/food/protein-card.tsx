@@ -2,10 +2,11 @@
 
 import { Check, Flame } from "lucide-react";
 import { Bar } from "@/components/ui";
-import { PROTEIN_G_PER_KG } from "@/lib/targets";
-import type { Macros, Target } from "@/lib/types";
+import { MODE_LABELS } from "@/lib/targets";
+import type { GoalMode, Macros, Target } from "@/lib/types";
 
 const r = (n: number) => Math.round(n);
+const signed = (n: number) => `${n >= 0 ? "+" : "−"}${Math.abs(r(n)).toLocaleString()}`;
 
 // Protein leads the day: grams still to go, the streak, and how the goal is
 // worked out. Calories and the other macros sit underneath.
@@ -15,16 +16,23 @@ export function ProteinCard({
   streak,
   perKg,
   weightKg,
+  mode,
+  maintenance,
+  isToday,
+  dayNote,
 }: {
   eaten: Macros;
-  target: Target;
+  target: Pick<Target, "calories" | "protein" | "carbs" | "fat">;
   streak: number;
-  perKg: number | undefined;
+  perKg: number;
   weightKg: number | null;
+  mode: GoalMode;
+  maintenance: number | null;
+  isToday: boolean;
+  dayNote: string;
 }) {
   const left = Math.max(0, r(target.protein - eaten.protein));
   const met = eaten.protein >= target.protein * 0.95;
-  const factor = perKg ?? PROTEIN_G_PER_KG;
   const kcalLeft = target.calories - eaten.kcal;
 
   return (
@@ -64,10 +72,10 @@ export function ProteinCard({
         <p className="pb-1 text-muted">
           {weightKg ? (
             <>
-              {factor.toFixed(1)} g per kg × {weightKg} kg body weight, rounded to the nearest 5 g.
+              {perKg.toFixed(1)} g per kg × {weightKg} kg body weight, rounded to the nearest 5 g.
             </>
           ) : (
-            <>{factor.toFixed(1)} g per kg of body weight.</>
+            <>{perKg.toFixed(1)} g per kg of body weight.</>
           )}{" "}
           It moves with your weight. Spread it out: about {Math.round(target.protein / 4)} g at each of 4 meals builds more muscle than one huge serving. Change
           the amount per kg in Settings.
@@ -79,6 +87,16 @@ export function ProteinCard({
         <Macro label="Carbs" value={eaten.carbs} goal={target.carbs} unit=" g" />
         <Macro label="Fat" value={eaten.fat} goal={target.fat} unit=" g" />
       </div>
+      {dayNote && <p className="mt-3 text-xs text-muted">{dayNote}</p>}
+      {maintenance !== null && (
+        <p className="num mt-3 text-xs text-muted">
+          vs maintenance {maintenance.toLocaleString()} kcal:{" "}
+          <b className="font-semibold text-text">
+            {signed(eaten.kcal - maintenance)} {eaten.kcal >= maintenance ? "surplus" : "deficit"}
+          </b>
+          {isToday && " so far"} · target {signed(target.calories - maintenance)} ({MODE_LABELS[mode].label.toLowerCase()})
+        </p>
+      )}
     </section>
   );
 }

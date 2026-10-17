@@ -3,6 +3,7 @@
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Segmented, Sheet, Stepper } from "@/components/ui";
+import { proteinPer100Kcal } from "@/lib/protein";
 import { newId } from "@/lib/repo";
 import type { Food, FoodEntry, Meal } from "@/lib/types";
 
@@ -81,6 +82,7 @@ function AddFoodForm({ target, defaultMeal, onAdd, onUpdate, onDelete, onEditRec
           </div>
         ))}
       </div>
+      <p className="num -mt-2 text-sm text-muted">{proteinPer100Kcal(per)} g protein per 100 kcal</p>
       <div>
         <p className="label mb-1.5">Servings</p>
         <Stepper label="servings" value={servings} step={0.5} min={0.25} onChange={setServings} />

@@ -1,18 +1,33 @@
 import { alive, db, PROFILE_ID, SYNCED_TABLES } from "./db";
 import { dateKey } from "./dates";
 import { EXERCISE_LIBRARY } from "./data/exercises";
+import { CURATED_FOODS } from "./data/indian-foods";
 import { SPLIT_TEMPLATES, type SplitTemplateId } from "./data/split-templates";
-import { initialTargets, macrosFor, planAdjustment, proteinFor, PROTEIN_G_PER_KG, type BodyStats } from "./targets";
+import {
+  bodyOf,
+  formatAdjust,
+  macrosFor,
+  MODE_LABELS,
+  MODE_PROTEIN,
+  modeOf,
+  modeTargets,
+  perKgFor,
+  planAdjustment,
+  proteinFor,
+  type BodyStats,
+} from "./targets";
 import type {
   DayLog,
   Exercise,
   Food,
   FoodEntry,
+  GoalMode,
   Meal,
   PlannedExercise,
   Profile,
   SavedMeal,
   SplitDay,
+  SupplementId,
   SyncFields,
   SyncedTable,
   Target,
@@ -20,6 +35,7 @@ import type {
   Workout,
   WorkoutSet,
 } from "./types";
+import { SUPPLEMENTS, takenOf } from "./supplements";
 import { detectPr, replayPrs } from "./workout-logic";
 
 export const newId = () => crypto.randomUUID();
@@ -60,12 +76,16 @@ export async function remove(table: SyncedTable, id: string) {
 // ---------- Onboarding ----------
 
 export interface OnboardingInput extends BodyStats {
+  mode: GoalMode;
   template: SplitTemplateId;
 }
 
+const modeReason = (mode: GoalMode, t: { maintenance: number; calories: number }) =>
+  `${MODE_LABELS[mode].label}: maintenance ${t.maintenance.toLocaleString("en-IN")} kcal ${formatAdjust(mode)} = ${t.calories.toLocaleString("en-IN")} kcal.`;
+
 export async function completeOnboarding(input: OnboardingInput) {
   const today = dateKey();
-  const t = initialTargets(input);
+  const t = modeTargets(input, input.mode);
   await seedExercises();
   await save("profile", {
     id: PROFILE_ID,
@@ -73,7 +93,9 @@ export async function completeOnboarding(input: OnboardingInput) {
     birthYear: new Date().getFullYear() - input.age,
     heightCm: input.heightCm,
     activity: input.activity,
-    pace: input.pace,
+    pace: "standard",
+    mode: input.mode,
+    proteinPerKg: MODE_PROTEIN[input.mode],
     autoAdjust: true,
     restSeconds: 120,
     onboarded: true,
@@ -86,7 +108,7 @@ export async function completeOnboarding(input: OnboardingInput) {
     carbs: t.carbs,
     fat: t.fat,
     source: "initial",
-    reason: `Maintenance plus about ${t.surplus} kcal a day for a lean gain.`,
+    reason: modeReason(input.mode, t),
   });
   await logWeight(input.weightKg, today);
   await applyTemplate(input.template);
@@ -111,6 +133,27 @@ export async function applyTemplate(id: SplitTemplateId) {
 export async function updateProfile(patch: Partial<Profile>) {
   const p = await db.profile.get(PROFILE_ID);
   if (p) await save("profile", { ...p, ...patch });
+}
+
+// Which supplements you take. One transaction so quick taps all stick.
+export async function toggleTakenSupplement(id: SupplementId) {
+  await db.transaction("rw", db.profile, db.outbox, async () => {
+    const p = await db.profile.get(PROFILE_ID);
+    if (!p) return;
+    const taken = takenOf(p);
+    await save("profile", { ...p, supplements: taken.includes(id) ? taken.filter((x) => x !== id) : [...taken, id] });
+  });
+}
+
+// Read and write in one transaction so quick taps on several days all stick.
+export async function toggleTrainingDay(day: number) {
+  await db.transaction("rw", db.profile, db.outbox, async () => {
+    const p = await db.profile.get(PROFILE_ID);
+    if (!p) return;
+    const days = p.trainingDays ?? [];
+    const next = days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort((a, b) => a - b);
+    await save("profile", { ...p, trainingDays: next });
+  });
 }
 
 // ---------- Split ----------
@@ -265,7 +308,7 @@ export async function logWeight(kg: number, date = dateKey()) {
   return entry;
 }
 
-const perKgOf = async () => (await db.profile.get(PROFILE_ID))?.proteinPerKg ?? PROTEIN_G_PER_KG;
+const perKgOf = async () => perKgFor(await db.profile.get(PROFILE_ID));
 
 // Protein is set per kg, so it follows your weight. The current target is
 // updated in place (calories unchanged) so the two-week calorie clock isn't
@@ -283,6 +326,33 @@ export async function followWeightWithProtein(perKg?: number) {
 export async function setProteinPerKg(perKg: number) {
   await updateProfile({ proteinPerKg: perKg });
   await followWeightWithProtein(perKg);
+}
+
+// A fresh target from today using the goal's formula. Earlier targets and
+// logged food are left as they were.
+export async function recalculateTargets(): Promise<Target | undefined> {
+  const profile = await db.profile.get(PROFILE_ID);
+  const w = await latestWeight();
+  if (!profile || !w) return;
+  const mode = modeOf(profile);
+  const t = modeTargets({ ...bodyOf(profile), weightKg: w.kg }, mode, perKgFor(profile));
+  return save("targets", {
+    id: newId(),
+    date: dateKey(),
+    calories: t.calories,
+    protein: t.protein,
+    carbs: t.carbs,
+    fat: t.fat,
+    source: "manual",
+    reason: `${modeReason(mode, t)} At ${w.kg} kg.`,
+  });
+}
+
+// Switching goal resets protein to that goal's default (you can change it
+// after) and recalculates calories and macros.
+export async function setGoalMode(mode: GoalMode) {
+  await updateProfile({ mode, proteinPerKg: MODE_PROTEIN[mode] });
+  return recalculateTargets();
 }
 
 export async function currentTarget(): Promise<Target | undefined> {
@@ -307,11 +377,12 @@ export async function runAutoAdjust(): Promise<Target | null> {
     current,
     weights,
     loggedFoodDays: [...new Set(entries.map((e) => e.date))],
-    pace: profile.pace,
+    mode: modeOf(profile),
+    body: bodyOf(profile),
   });
   if (result.kind !== "change") return null;
   const latestKg = weights.sort((a, b) => a.date.localeCompare(b.date)).at(-1)!.kg;
-  const m = macrosFor(current.calories + result.delta, latestKg, profile.proteinPerKg ?? PROTEIN_G_PER_KG);
+  const m = macrosFor(current.calories + result.delta, latestKg, perKgFor(profile));
   const next = await save("targets", { id: newId(), date: dateKey(), ...m, source: "auto", reason: result.reason });
   await db.meta.put({ key: "unseenAdjustment", value: next.id });
   return next;
@@ -457,6 +528,38 @@ export async function deleteWorkout(workout: Workout) {
 export async function updateDay(date: string, patch: Partial<Pick<DayLog, "waterGlasses" | "creatine">>) {
   const current = await db.days.get(date);
   return save("days", { id: date, date, waterGlasses: 0, creatine: false, ...current, ...patch, deletedAt: null });
+}
+
+// Ticks a supplement on or off for a day and returns an undo. Whey and mass
+// gainer are logged as food so they count in the day's totals; unticking
+// removes that day's entries for them.
+export async function toggleSupplement(date: string, id: SupplementId): Promise<() => Promise<void>> {
+  const foodId = SUPPLEMENTS.find((s) => s.id === id)?.foodId;
+  if (foodId) {
+    const logged = alive(await db.foodEntries.where("date").equals(date).toArray()).filter((e) => e.foodId === foodId);
+    if (logged.length) {
+      for (const e of logged) await remove("foodEntries", e.id);
+      return async () => {
+        for (const e of logged) await save("foodEntries", { ...e, deletedAt: null });
+      };
+    }
+    const e = await logFood(CURATED_FOODS.find((f) => f.id === foodId)!, 1, mealForNow(), date);
+    return () => remove("foodEntries", e.id);
+  }
+  // Read and write in one transaction so quick taps all stick.
+  await db.transaction("rw", db.days, db.outbox, async () => {
+    const current = await db.days.get(date);
+    const row: Omit<DayLog, "updatedAt"> = { id: date, date, waterGlasses: 0, creatine: false, ...current, deletedAt: null };
+    if (id === "creatine") row.creatine = !row.creatine;
+    else {
+      const list = row.supplements ?? [];
+      row.supplements = list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+    }
+    await save("days", row);
+  });
+  return async () => {
+    await toggleSupplement(date, id);
+  };
 }
 
 // Copies entries onto another day (optionally into one meal slot) and

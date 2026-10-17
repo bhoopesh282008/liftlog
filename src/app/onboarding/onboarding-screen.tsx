@@ -8,8 +8,8 @@ import { Segmented } from "@/components/ui";
 import { SPLIT_TEMPLATES, type SplitTemplateId } from "@/lib/data/split-templates";
 import { completeOnboarding } from "@/lib/repo";
 import { syncConfigured } from "@/lib/sync";
-import { ACTIVITY_LABELS, initialTargets, PACE_LABELS, PACE_PERCENT_PER_MONTH, targetWeeklyGainKg } from "@/lib/targets";
-import type { Activity, GainPace, Sex } from "@/lib/types";
+import { ACTIVITY_LABELS, formatAdjust, GOAL_MODES, MODE_LABELS, MODE_PROTEIN, modeFormula, modeTargets, modeWeeklyChangeKg } from "@/lib/targets";
+import type { Activity, GoalMode, Sex } from "@/lib/types";
 
 const STEPS = 5;
 
@@ -20,14 +20,14 @@ export function OnboardingScreen() {
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [activity, setActivity] = useState<Activity>("moderate");
-  const [pace, setPace] = useState<GainPace>("standard");
+  const [mode, setMode] = useState<GoalMode>("bulk");
   const [template, setTemplate] = useState<SplitTemplateId>("ppl");
   const [busy, setBusy] = useState(false);
 
   const n = (s: string) => parseFloat(s.replace(",", "."));
   const statsValid = n(age) >= 14 && n(age) <= 90 && n(height) >= 120 && n(height) <= 230 && n(weight) >= 30 && n(weight) <= 250;
-  const stats = { sex, age: n(age), heightCm: n(height), weightKg: n(weight), activity, pace };
-  const targets = statsValid ? initialTargets(stats) : null;
+  const stats = { sex, age: n(age), heightCm: n(height), weightKg: n(weight), activity };
+  const targets = statsValid ? modeTargets(stats, mode) : null;
 
   const next = () => setStep((s) => s + 1);
 
@@ -93,15 +93,18 @@ export function OnboardingScreen() {
 
         {step === 3 && (
           <>
-            <Title title="How fast should you gain?" body="Slower gains add more muscle for each kilo. You can change this later." />
+            <Title title="What's your goal?" body="It sets your calories and protein. You can change it later in Settings." />
             <Options
-              value={pace}
-              onChange={setPace}
-              options={(Object.keys(PACE_LABELS) as GainPace[]).map((p) => ({
-                value: p,
-                label: PACE_LABELS[p],
-                detail: `About ${(targetWeeklyGainKg(n(weight) || 70, p) * 52 / 12).toFixed(1)} kg a month (${PACE_PERCENT_PER_MONTH[p]}% of body weight)`,
-              }))}
+              value={mode}
+              onChange={setMode}
+              options={GOAL_MODES.map((m) => {
+                const kg = modeWeeklyChangeKg(stats, m);
+                return {
+                  value: m,
+                  label: MODE_LABELS[m].label,
+                  detail: `${MODE_LABELS[m].detail}. ${formatAdjust(m)} calories${kg ? `, about ${kg > 0 ? "+" : "−"}${Math.abs(kg).toFixed(2)} kg a week` : ""}`,
+                };
+              })}
             />
             <Footer onNext={next} />
           </>
@@ -109,7 +112,7 @@ export function OnboardingScreen() {
 
         {step === 4 && targets && (
           <>
-            <Title title="Your daily targets" body="A small surplus over maintenance. Every two weeks LiftLog checks your weight trend and nudges calories up or down." />
+            <Title title="Your daily targets" body="Every two weeks LiftLog checks your weight trend against the plan and nudges calories up or down." />
             <div className="card p-5">
               <p className="label">Calories</p>
               <p className="num text-5xl font-semibold tracking-tight">{targets.calories.toLocaleString()}</p>
@@ -126,7 +129,12 @@ export function OnboardingScreen() {
                 ))}
               </div>
             </div>
-            <p className="mt-3 px-1 text-sm text-muted">Protein is set at 2 g per kg of body weight, the part that matters most for building muscle.</p>
+            <ul className="num mt-3 space-y-1 px-1 text-sm text-muted">
+              {modeFormula(stats, mode).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <p className="mt-2 px-1 text-sm text-muted">Protein at {MODE_PROTEIN[mode].toFixed(1)} g per kg matters most for keeping and building muscle.</p>
             <Footer onNext={next} />
           </>
         )}
@@ -144,7 +152,7 @@ export function OnboardingScreen() {
               disabled={busy}
               onNext={async () => {
                 setBusy(true);
-                await completeOnboarding({ ...stats, template });
+                await completeOnboarding({ ...stats, mode, template });
               }}
             />
           </>

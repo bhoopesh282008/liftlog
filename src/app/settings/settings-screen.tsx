@@ -10,9 +10,34 @@ import { useToast } from "@/components/toast";
 import { Segmented } from "@/components/ui";
 import { dateKey } from "@/lib/dates";
 import { alive, db, PROFILE_ID } from "@/lib/db";
-import { ageFrom, ACTIVITY_LABELS, initialTargets, PACE_LABELS, PROTEIN_G_PER_KG, PROTEIN_LEVELS, proteinFor } from "@/lib/targets";
-import { exportAll, latestWeight, newId, remove, save, setManualTarget, setProteinPerKg, updateProfile } from "@/lib/repo";
-import type { Activity, GainPace } from "@/lib/types";
+import {
+  ageFrom,
+  ACTIVITY_LABELS,
+  bodyOf,
+  formatAdjust,
+  GOAL_MODES,
+  MODE_LABELS,
+  modeFormula,
+  modeOf,
+  perKgFor,
+  PROTEIN_LEVELS,
+  proteinFor,
+} from "@/lib/targets";
+import { SUPPLEMENTS, takenOf } from "@/lib/supplements";
+import { waterGoalGlasses } from "@/lib/training";
+import { exportAll, latestWeight, recalculateTargets, remove, setGoalMode, setManualTarget, setProteinPerKg, toggleTakenSupplement, toggleTrainingDay, updateProfile } from "@/lib/repo";
+import type { Activity, GoalMode } from "@/lib/types";
+
+// Monday first; values are Date.getDay() (0 = Sunday).
+const WEEKDAYS = [
+  { day: 1, label: "M", name: "Monday" },
+  { day: 2, label: "T", name: "Tuesday" },
+  { day: 3, label: "W", name: "Wednesday" },
+  { day: 4, label: "T", name: "Thursday" },
+  { day: 5, label: "F", name: "Friday" },
+  { day: 6, label: "S", name: "Saturday" },
+  { day: 0, label: "S", name: "Sunday" },
+];
 
 export function SettingsScreen() {
   const toast = useToast();
@@ -37,33 +62,13 @@ export function SettingsScreen() {
 
   if (!data?.profile) return null;
   const { profile, days, target, customFoods, meals, latestKg } = data;
-  const perKg = profile.proteinPerKg ?? PROTEIN_G_PER_KG;
+  const perKg = perKgFor(profile);
+  const mode = modeOf(profile);
+  const trainingDays = profile.trainingDays ?? [];
 
   const recalc = async () => {
-    const w = await latestWeight();
-    if (!w) return;
-    const t = initialTargets(
-      {
-      sex: profile.sex,
-      age: ageFrom(profile.birthYear),
-      heightCm: profile.heightCm,
-      weightKg: w.kg,
-      activity: profile.activity,
-      pace: profile.pace,
-      },
-      profile.proteinPerKg,
-    );
-    await save("targets", {
-      id: newId(),
-      date: dateKey(),
-      calories: t.calories,
-      protein: t.protein,
-      carbs: t.carbs,
-      fat: t.fat,
-      source: "manual",
-      reason: `Recalculated from your stats at ${w.kg} kg.`,
-    });
-    toast(`Targets recalculated: ${t.calories.toLocaleString()} kcal`);
+    const t = await recalculateTargets();
+    if (t) toast(`Targets recalculated: ${t.calories.toLocaleString()} kcal`);
   };
 
   return (
@@ -88,9 +93,54 @@ export function SettingsScreen() {
             />
           </div>
         </div>
+        <div className="space-y-2 px-4 py-3">
+          <p>Training days</p>
+          <div className="flex gap-1.5">
+            {WEEKDAYS.map(({ day, label, name }) => {
+              const on = trainingDays.includes(day);
+              return (
+                <button
+                  key={day}
+                  className="chip min-h-10 flex-1 justify-center px-0"
+                  data-on={on}
+                  aria-pressed={on}
+                  aria-label={name}
+                  onClick={() => void toggleTrainingDay(day)}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-sm text-muted">
+            Planned training days get +10% calories as carbs, and rest days give the same back, so the week&apos;s total stays the same. A day you log a workout
+            also counts as a training day.
+          </p>
+        </div>
       </Group>
 
       <Group title="Targets">
+        <div className="space-y-2 px-4 py-3">
+          <p>Goal</p>
+          <Segmented
+            value={mode}
+            onChange={async (v: GoalMode) => {
+              const t = await setGoalMode(v);
+              toast(`${MODE_LABELS[v].label}: ${t ? `${t.calories.toLocaleString()} kcal, ${t.protein} g protein` : "saved"}`);
+            }}
+            options={GOAL_MODES.map((m) => ({ value: m, label: MODE_LABELS[m].label }))}
+          />
+          <p className="text-sm text-muted">
+            {MODE_LABELS[mode].detail}: {formatAdjust(mode)} calories vs maintenance.
+          </p>
+          {latestKg && (
+            <ul className="num space-y-1 rounded-2xl bg-surface-2 p-3 text-xs text-muted">
+              {modeFormula({ ...bodyOf(profile), weightKg: latestKg }, mode, perKg).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          )}
+        </div>
         <div className="px-4 py-3">
           <p className="num text-sm">
             {target ? `${target.calories.toLocaleString()} kcal · ${target.protein} g protein · ${target.carbs} g carbs · ${target.fat} g fat` : "No target yet"}
@@ -118,24 +168,21 @@ export function SettingsScreen() {
             {PROTEIN_LEVELS.find((l) => l.perKg === perKg)?.detail ?? ""}. It updates as your weight changes.
           </p>
         </div>
-        <Row label="Auto-adjust every 2 weeks" detail="Nudges calories when your weight trend is off pace">
+        <Row label="Auto-adjust every 2 weeks" detail="Nudges calories when your weight trend is off plan">
           <Switch on={profile.autoAdjust} onChange={(v) => void updateProfile({ autoAdjust: v })} label="Auto-adjust" />
         </Row>
-        <div className="space-y-2 px-4 py-3">
-          <p>Daily water goal</p>
-          <Segmented
-            value={String(profile.waterGoal ?? 12)}
-            onChange={(v) => void updateProfile({ waterGoal: Number(v) })}
-            options={["8", "12", "14", "16"].map((g) => ({ value: g, label: `${(Number(g) * 0.25).toString()} L` }))}
-          />
-        </div>
+        <Row label="Add workout calories" detail="An estimate: 5 MET × your kg × workout time, added to that day as carbs">
+          <Switch on={Boolean(profile.workoutCalories)} onChange={(v) => void updateProfile({ workoutCalories: v })} label="Add workout calories" />
+        </Row>
+        <Row label="Daily water goal" detail="35 ml per kg, plus 500 ml on training days, in 250 ml glasses">
+          {latestKg && (
+            <span className="num shrink-0 text-right text-sm text-muted">
+              {waterGoalGlasses(latestKg, false)} rest
+              <span className="block">{waterGoalGlasses(latestKg, true)} training</span>
+            </span>
+          )}
+        </Row>
         <div className="space-y-3 px-4 py-3">
-          <p className="label">Gain pace</p>
-          <Segmented
-            value={profile.pace}
-            onChange={(v: GainPace) => void updateProfile({ pace: v })}
-            options={(Object.keys(PACE_LABELS) as GainPace[]).map((p) => ({ value: p, label: p === "standard" ? "Standard" : p === "slow" ? "Slow" : "Fast" }))}
-          />
           <p className="label">Activity</p>
           <select
             className="input"
@@ -177,6 +224,26 @@ export function SettingsScreen() {
           <button className="btn w-full" onClick={recalc}>
             Recalculate targets from my stats
           </button>
+        </div>
+      </Group>
+
+      <Group title="Supplements">
+        <div className="space-y-2 px-4 py-3">
+          <p>What you take</p>
+          <div className="flex flex-wrap gap-2">
+            {SUPPLEMENTS.map((s) => {
+              const on = takenOf(profile).includes(s.id);
+              return (
+                <button key={s.id} className="chip min-h-11" data-on={on} aria-pressed={on} onClick={() => void toggleTakenSupplement(s.id)}>
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-sm text-muted">
+            They show as a checklist on the Food screen, with a reminder until they&apos;re ticked. Whey and mass gainer are logged as food, so their protein and
+            calories count. Pre-workout only shows on training days.
+          </p>
         </div>
       </Group>
 

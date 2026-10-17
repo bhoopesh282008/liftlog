@@ -9,6 +9,7 @@ export interface SyncFields {
 export type Sex = "male" | "female";
 export type Activity = "sedentary" | "light" | "moderate" | "active" | "very_active";
 export type GainPace = "slow" | "standard" | "fast";
+export type GoalMode = "bulk" | "cut" | "recomp" | "maintenance";
 export type Meal = "breakfast" | "lunch" | "snack" | "dinner";
 
 export interface Profile extends SyncFields {
@@ -16,14 +17,20 @@ export interface Profile extends SyncFields {
   birthYear: number;
   heightCm: number;
   activity: Activity;
-  pace: GainPace;
+  pace: GainPace; // no longer used: calories follow `mode`
+  mode?: GoalMode; // unset means bulk
   autoAdjust: boolean;
   restSeconds: number;
   onboarded: boolean;
   waterGoal?: number; // glasses of 250 ml
   proteinPerKg?: number; // grams of protein per kg of body weight
   diet?: "veg" | "egg" | "nonveg";
+  trainingDays?: number[]; // planned weekdays, 0 = Sunday
+  workoutCalories?: boolean; // add estimated workout calories to the day's target
+  supplements?: SupplementId[]; // the ones you take; unset means whey and creatine
 }
+
+export type SupplementId = "whey" | "mass-gainer" | "creatine" | "multivitamin" | "fish-oil" | "pre-workout";
 
 export interface Target extends SyncFields {
   date: string; // YYYY-MM-DD the target took effect
@@ -143,6 +150,9 @@ export interface DayLog extends SyncFields {
   date: string;
   waterGlasses: number;
   creatine: boolean;
+  // Ticked-off pills. Creatine stays in `creatine`; whey and mass gainer
+  // are logged as food instead.
+  supplements?: SupplementId[];
 }
 
 export interface OutboxItem {
