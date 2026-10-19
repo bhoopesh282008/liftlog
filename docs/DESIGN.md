@@ -82,39 +82,53 @@ fitness products.
 
 ## Motion
 
-Every animation answers "what changed?". All of it collapses to instant under
-`prefers-reduced-motion`.
+Native and quick, never decorative. Every animation answers "what changed?",
+and all of it collapses to instant under `prefers-reduced-motion`.
 
-- **Launch splash.** The barbell assembles (bar, then plates slam on), the
-  wordmark rises, then the whole screen lifts away like a rep. It plays once
-  per cold start, never on tab changes.
-- **Page enter.** Each tab fades up 8px and its sections stagger in 40ms
-  apart, so you see where the content came from.
-- **Progress fills.** Bars grow from zero when they appear, so the number
-  reads as progress, not a static graphic.
-- **Press.** Buttons and chips compress to 0.96 on press.
-- **Tab bar.** The red pill slides to the tab you picked (Motion shared layout).
-- **Haptics.** Logging a set and finishing a workout tick the phone (ios-haptics on iPhone, the vibration API elsewhere).
-- **Launch.** iPhone launch images are the splash's first frame (plain graphite), so there is no white flash before it plays.
+- **Launch.** The mark settles in (320 ms), then the screen zooms gently
+  past into the app (240 ms), like an iPhone app opening. The iOS launch
+  image is the same plain graphite, so there is no flash.
+- **Tabs.** Switching tabs is a 140 ms crossfade, with no staggered entrances.
+  Deeper pages (History, Your split) push in from the right with the iOS curve.
+- **Tab bar.** The red pill slides to the tab you picked (Motion shared
+  layout, a stiff spring).
+- **Sheets, toasts, rest dock.** Motion springs in and out, and sheets follow a
+  flick's velocity.
+- **Numbers, rings and bars** move only when the value changes (for example
+  after you log food). Nothing counts up on every visit.
+- **Press.** Buttons and chips compress to 0.96 on press (80 ms).
+- **Haptics.** Logging a set and finishing a workout tick the phone.
+- **Ambient light** behind the glass is still on purpose: light moving under
+  blurred glass forces a re-blur every frame and stutters on phones.
 
-UI motion animates only `transform` and `opacity`. The exceptions are the protein ring's stroke (a paint-only 92px SVG) and the two WebGL backdrops.
+Removed on purpose, because they read as generated and cost frames: a
+letter-by-letter headline, WebGL fog and gradient backdrops, spark bursts,
+badge sheens, staggered page entrances and smooth-scroll hijacking.
 
 ## Libraries and where they are used
 
-Each one has a single job. Anything heavy loads only where it is used.
-
 | Library | Used for | Where |
 | --- | --- | --- |
-| GSAP (`@gsap/react`) | Counting numbers up to their new value | `CountUp`: protein card |
-| React Bits SplitText (GSAP) | Headline rising in letter by letter | Onboarding welcome |
-| React Bits ClickSpark | Red sparks when you log a set | Workout Log button |
-| React Bits ShinyText | A sheen across the badge when a PR lands | Workout "New PR" |
-| Motion | Tab pill (shared layout), sheet slide and flick-to-dismiss, toast and rest-dock exits; app-wide reduced-motion | App shell, `Sheet`, toasts |
+| Motion | Tab pill, sheets (slide and flick), toasts, rest dock, number roll, app-wide reduced motion | App shell, `Sheet`, toasts, `CountUp` |
 | Sliding Number (motion-primitives, via 21st.dev) | Odometer digits on the rest timer | Rest dock |
-| Lenis | Smooth wheel scrolling, desktop only (touch stays native) | App shell |
-| Vanta FOG (three.js r134) | Animated red fog backdrop, loaded on demand | Onboarding welcome |
-| GetLayers "Soffit" (WebGL2) | Overhead red light behind the launch splash | Splash |
+| ios-haptics | System haptic on Log set and Finish workout | Workout |
 
-React Bits and Sliding Number are copied into `src/components/` (that is how
-both are distributed) with small LiftLog fixes noted in each file.
+GSAP, Lenis, Vanta/three.js, React Bits and the GetLayers WebGL gradient were
+removed in the animation rework.
 
+## Steps
+
+A Steps card on the Food screen shows today against the goal (Settings →
+Steps, 6k–12k), with a 7-day bar chart and calories walked. Steps are typed
+in, or sent by an iPhone Shortcut. The Shortcut reads Health, sums today's
+steps and opens `/steps?count=N`. That opens in Safari, which saves and syncs
+the count, so the home-screen app needs sync. Steps live in their own record
+per day (`<date>:steps`), so a count from Safari can't overwrite that day's
+water.
+
+## Demo
+
+"Try the demo" on the welcome screen loads four weeks of sample data
+straight into the local database, skipping the sync queue so it can never
+upload. A banner offers "Start fresh", which wipes the device. Sync sign-in
+is off during the demo.

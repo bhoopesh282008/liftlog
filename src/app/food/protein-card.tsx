@@ -119,7 +119,7 @@ function Ring({ value, max }: { value: number; max: number }) {
           pathLength={100}
           strokeDasharray="100"
           strokeDashoffset={100 - pct}
-          className="animate-ring transition-[stroke-dashoffset] duration-700 ease-out"
+          className="transition-[stroke-dashoffset] duration-500 ease-out"
         />
       </svg>
       <CountUp value={pct} format={(n) => `${Math.round(n)}%`} className="absolute inset-0 flex items-center justify-center text-[17px] font-bold tracking-[-0.02em]" />

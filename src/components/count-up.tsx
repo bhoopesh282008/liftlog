@@ -1,44 +1,36 @@
 "use client";
 
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { useRef } from "react";
-
-gsap.registerPlugin(useGSAP);
+import { animate, useReducedMotion } from "motion/react";
+import { useEffect, useRef } from "react";
 
 const round = (n: number) => Math.round(n).toLocaleString();
 
-// A number that counts to its new value with GSAP, so a change reads as
-// progress: from zero when it first appears, then from the old value after
-// each log. Writes the text directly, outside React's render, so a running
-// count costs no re-renders. Lands instantly under reduced motion.
-export function CountUp({ value, format = round, duration = 0.9, className }: { value: number; format?: (n: number) => string; duration?: number; className?: string }) {
+// A number that rolls to its new value when it changes (after you log food,
+// say), so the change reads as progress. It shows the real value straight
+// away when it first appears: no count-up on every screen visit.
+export function CountUp({ value, format = round, className }: { value: number; format?: (n: number) => string; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const shown = useRef(0);
+  const shown = useRef(value);
+  const reduce = useReducedMotion();
 
-  useGSAP(
-    () => {
-      const el = ref.current;
-      if (!el) return;
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        shown.current = value;
-        el.textContent = format(value);
-        return;
-      }
-      const box = { v: shown.current };
-      el.textContent = format(box.v);
-      gsap.to(box, {
-        v: value,
-        duration,
-        ease: "power3.out",
-        onUpdate: () => {
-          shown.current = box.v;
-          el.textContent = format(box.v);
-        },
-      });
-    },
-    { dependencies: [value] },
-  );
+  useEffect(() => {
+    const el = ref.current;
+    const from = shown.current;
+    shown.current = value;
+    if (!el || from === value) return;
+    if (reduce) {
+      el.textContent = format(value);
+      return;
+    }
+    const controls = animate(from, value, {
+      duration: 0.45,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => {
+        el.textContent = format(v);
+      },
+    });
+    return () => controls.stop();
+  }, [value, format, reduce]);
 
   return (
     <span ref={ref} className={`num ${className ?? ""}`}>

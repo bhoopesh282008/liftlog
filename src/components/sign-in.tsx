@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Cloud, CloudOff, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/db";
+import { DEMO_FLAG } from "@/lib/demo";
 import { supabase, syncConfigured, syncNow } from "@/lib/sync";
 
 // Email + password, entirely inside the app. Emailed links open in Safari,
@@ -23,6 +24,7 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
   const [busy, setBusy] = useState(false);
   const pending = useLiveQuery(() => db.outbox.count(), []) ?? 0;
   const lastSync = useLiveQuery(async () => (await db.meta.get("lastSyncAt"))?.value as number | undefined, []);
+  const demo = useLiveQuery(async () => (await db.meta.get(DEMO_FLAG))?.value === true, []);
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -38,6 +40,15 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
       unsubscribe();
     };
   }, []);
+
+  if (demo) {
+    return (
+      <div className="flex gap-3 text-sm">
+        <CloudOff size={18} className="mt-0.5 shrink-0 text-muted" aria-hidden />
+        <p className="text-muted">You&apos;re in the demo, so sync is off. Tap Start fresh at the top to set up your own data, then sign in.</p>
+      </div>
+    );
+  }
 
   if (!syncConfigured) {
     return (

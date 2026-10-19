@@ -10,7 +10,7 @@
   --surface-2: rgb(17 19 17 / 0.055);
   --text: #111311;
   --muted: #5d6159;
-  --faint: #737770;
+  --faint: #6b6f68;
   --line: rgb(17 19 17 / 0.08);
   --line-strong: rgb(17 19 17 / 0.14);
   --accent: #d61f2c;
@@ -43,7 +43,7 @@
     --surface-2: rgb(255 255 255 / 0.07);
     --text: #f2f3f1;
     --muted: #9a9ca3;
-    --faint: #80838b;
+    --faint: #8c8f97;
     --line: rgb(255 255 255 / 0.07);
     --line-strong: rgb(255 255 255 / 0.13);
     --accent: #ff4d4d;
@@ -75,7 +75,7 @@
   --surface-2: rgb(255 255 255 / 0.07);
   --text: #f2f3f1;
   --muted: #9a9ca3;
-  --faint: #80838b;
+  --faint: #8c8f97;
   --line: rgb(255 255 255 / 0.07);
   --line-strong: rgb(255 255 255 / 0.13);
   --accent: #ff4d4d;
@@ -255,6 +255,7 @@ p {
   }
   .btn:active {
     transform: scale(0.96);
+    transition-duration: 80ms;
   }
   @media (hover: hover) {
     .btn:hover:not(:disabled) {
@@ -407,99 +408,45 @@ p {
   animation: pop 320ms ease-out both;
 }
 
-/* Page enter: the tab rises in and its sections follow 40ms apart, so you
-   can see where the content came from. */
-.animate-page > * > * {
-  animation: enter 360ms var(--ease-out) both;
+/* Navigation, the iOS way: switching tabs is a quick crossfade (no
+   staggered entrances), and a deeper page pushes in from the right. */
+@keyframes tab-in {
+  from {
+    opacity: 0;
+  }
 }
-.animate-page > * > *:nth-child(2) { animation-delay: 40ms; }
-.animate-page > * > *:nth-child(3) { animation-delay: 80ms; }
-.animate-page > * > *:nth-child(4) { animation-delay: 120ms; }
-.animate-page > * > *:nth-child(5) { animation-delay: 160ms; }
-.animate-page > * > *:nth-child(n + 6) { animation-delay: 200ms; }
+@keyframes push-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+.animate-tab {
+  animation: tab-in 140ms ease-out both;
+}
+.animate-push {
+  animation: push-in 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
 
-/* Progress fills grow from zero when they appear. */
-@keyframes grow {
-  from {
-    transform: translateX(-100%);
-  }
-}
-.animate-grow {
-  animation: grow 700ms var(--ease-out) both;
-}
-
-/* Launch splash: the bar slides in from the centre, the plates slam on from
-   the sides, the wordmark rises, then the screen lifts away like a rep. */
-@keyframes splash-bar {
-  from {
-    transform: scaleX(0);
-  }
-}
-@keyframes splash-plate-l {
-  0% {
-    transform: translateX(-56px) scaleY(0.6);
-    opacity: 0;
-  }
-  70% {
-    transform: translateX(3px) scaleY(1.04);
-    opacity: 1;
-  }
-}
-@keyframes splash-plate-r {
-  0% {
-    transform: translateX(56px) scaleY(0.6);
-    opacity: 0;
-  }
-  70% {
-    transform: translateX(-3px) scaleY(1.04);
-    opacity: 1;
-  }
-}
-@keyframes splash-thud {
-  40% {
-    transform: translateY(5px) scale(0.97);
-  }
-}
-@keyframes splash-rise {
-  from {
-    transform: translateY(105%);
-  }
-}
-@keyframes splash-wash {
+/* Launch: the mark settles in, then the screen zooms gently past into the
+   app, like an iPhone app opening. */
+@keyframes splash-in {
   from {
     opacity: 0;
-    transform: scale(0.6);
+    transform: scale(0.92);
   }
-}
-.splash-bar {
-  animation: splash-bar 420ms var(--ease-out) 80ms both;
-}
-.splash-plate-l {
-  animation: splash-plate-l 460ms var(--ease-spring) var(--d) both;
-}
-.splash-plate-r {
-  animation: splash-plate-r 460ms var(--ease-spring) var(--d) both;
 }
 .splash-mark {
-  animation: splash-thud 260ms ease-out 640ms both;
+  animation: splash-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.splash-letter {
-  display: inline-block;
-  animation: splash-rise 520ms var(--ease-out) var(--d) both;
-}
-.splash-wash {
-  animation: splash-wash 900ms var(--ease-out) 300ms both;
+.splash {
+  transition:
+    opacity 240ms ease-out,
+    transform 240ms cubic-bezier(0.4, 0, 1, 1);
 }
 .splash-leave {
-  transform: translateY(-100%);
-  transition: transform 560ms cubic-bezier(0.7, 0, 0.2, 1);
-}
-.splash-leave .splash-lockup {
-  transform: translateY(-40px);
   opacity: 0;
-  transition:
-    transform 420ms cubic-bezier(0.5, 0, 0.2, 1),
-    opacity 300ms ease-in;
+  transform: scale(1.06);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -527,35 +474,14 @@ p {
   padding-top: env(safe-area-inset-top);
 }
 
-/* The protein ring draws from empty. stroke-dashoffset is paint-only on a
-   92px SVG, cheap enough to animate. */
-@keyframes ring {
-  from {
-    stroke-dashoffset: 100;
-  }
-}
-.animate-ring {
-  animation: ring 900ms var(--ease-out) 120ms both;
-}
-
-/* Ambient light behind the glass: three soft blobs drifting slowly, so the
-   material has colour to bend. Static under reduced motion (global rule). */
-@keyframes drift-a {
-  50% {
-    transform: translate3d(6vw, 4vh, 0) scale(1.08);
-  }
-}
-@keyframes drift-b {
-  50% {
-    transform: translate3d(-8vw, -3vh, 0) scale(0.94);
-  }
-}
+/* Ambient light behind the glass: three soft, still blobs, so the material
+   has colour to bend. Still on purpose: moving light under blurred glass
+   makes every card re-blur every frame, which stutters on phones. */
 .ambient-blob {
   position: absolute;
   width: 90vmax;
   height: 90vmax;
   border-radius: 50%;
-  will-change: transform;
 }
 
 /* iOS-style scroll edge: content softens as it slides under the status bar. */

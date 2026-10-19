@@ -35,6 +35,7 @@ import type {
   Workout,
   WorkoutSet,
 } from "./types";
+import { stepsRecordId } from "./steps";
 import { SUPPLEMENTS, takenOf } from "./supplements";
 import { detectPr, replayPrs } from "./workout-logic";
 
@@ -528,6 +529,10 @@ export async function deleteWorkout(workout: Workout) {
 export async function updateDay(date: string, patch: Partial<Pick<DayLog, "waterGlasses" | "creatine">>) {
   const current = await db.days.get(date);
   return save("days", { id: date, date, waterGlasses: 0, creatine: false, ...current, ...patch, deletedAt: null });
+}
+
+export async function saveSteps(date: string, steps: number) {
+  return save("days", { id: stepsRecordId(date), date, waterGlasses: 0, creatine: false, steps, deletedAt: null });
 }
 
 // Ticks a supplement on or off for a day and returns an undo. Whey and mass

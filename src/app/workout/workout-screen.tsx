@@ -3,9 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { Check, ChevronDown, Dumbbell, History, Plus, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import ClickSpark from "@/components/react-bits/ClickSpark";
-import ShinyText from "@/components/react-bits/ShinyText";
+import { useEffect, useMemo, useState } from "react";
 import { ExercisePicker } from "@/components/exercise-picker";
 import { useRestTimer } from "@/components/rest-timer";
 import { SendToObsidian, useObsidianEnabled } from "@/components/send-to-obsidian";
@@ -13,7 +11,6 @@ import { useToast } from "@/components/toast";
 import { type Editing, SetSheet, showKg } from "@/components/set-sheet";
 import { Empty } from "@/components/ui";
 import { buzz, hapticRef } from "@/lib/haptics";
-import { useTokenColor } from "@/lib/use-token";
 import { MUSCLE_DAYS, muscleDay } from "@/lib/data/muscle-routines";
 import { addDays, dateKey } from "@/lib/dates";
 import { alive, db, PROFILE_ID } from "@/lib/db";
@@ -386,7 +383,7 @@ function ExerciseCard({
                   </span>
                   {s.pr ? (
                     <span className="animate-pop flex items-center gap-1 rounded-full bg-pr-soft px-2.5 py-1 text-xs font-semibold text-pr">
-                      <Trophy size={13} aria-hidden /> <PrLabel />
+                      <Trophy size={13} aria-hidden /> New PR
                     </span>
                   ) : (
                     <Check size={18} className="text-accent" />
@@ -417,7 +414,6 @@ function ExerciseCard({
                     )}
                   </button>
                   {first && (
-                    <LogSpark>
                     <button
                       ref={hapticRef}
                       className="btn btn-primary min-h-11 px-6"
@@ -429,7 +425,6 @@ function ExerciseCard({
                     >
                       Log
                     </button>
-                    </LogSpark>
                   )}
                 </li>
               );
@@ -465,21 +460,4 @@ function ProgressionNote({ p }: { p: Progression }) {
       </span>
     </p>
   );
-}
-
-// Logging a set bursts red sparks off the button (React Bits ClickSpark):
-// the one tap that matters most gets the most satisfying feedback.
-function LogSpark({ children }: { children: ReactNode }) {
-  const accent = useTokenColor("--accent", "#ff4d4d");
-  return (
-    <ClickSpark sparkColor={accent} sparkCount={10} sparkRadius={34} sparkSize={9} duration={480} className="h-auto! w-auto!">
-      {children}
-    </ClickSpark>
-  );
-}
-
-// A sheen sweeps across the badge once when a PR lands (React Bits ShinyText).
-function PrLabel() {
-  const pr = useTokenColor("--pr", "#ff8a3d");
-  return <ShinyText text="New PR" color={pr} shineColor="#ffffff" trigger="view" speed={1.4} />;
 }

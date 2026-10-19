@@ -24,6 +24,7 @@ import {
   PROTEIN_LEVELS,
   proteinFor,
 } from "@/lib/targets";
+import { DEFAULT_STEP_GOAL } from "@/lib/steps";
 import { SUPPLEMENTS, takenOf } from "@/lib/supplements";
 import { waterGoalGlasses } from "@/lib/training";
 import { exportAll, latestWeight, recalculateTargets, remove, setGoalMode, setManualTarget, setProteinPerKg, toggleTakenSupplement, toggleTrainingDay, updateProfile } from "@/lib/repo";
@@ -187,6 +188,8 @@ export function SettingsScreen() {
           <p className="label">Activity</p>
           <select
             className="input"
+            aria-label="Activity level"
+            name="activity"
             value={profile.activity}
             onChange={(e) => void updateProfile({ activity: e.target.value as Activity })}
           >
@@ -252,6 +255,10 @@ export function SettingsScreen() {
         <div className="px-4 py-4">
           <SignInCard />
         </div>
+      </Group>
+
+      <Group title="Steps">
+        <StepsSettings goal={profile.stepGoal ?? DEFAULT_STEP_GOAL} />
       </Group>
 
       <Group title="Journal">
@@ -372,5 +379,62 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
     >
       <span className={`absolute top-1 left-1 size-6 rounded-full bg-white shadow transition-transform duration-200 ${on ? "translate-x-5" : ""}`} />
     </button>
+  );
+}
+
+// Daily step goal, and how to send steps from Apple Health with a Shortcut.
+// A Shortcut's "Open URL" lands in Safari, not the home-screen app, so the
+// steps reach this app through sync: sign in once in Safari as well.
+function StepsSettings({ goal }: { goal: number }) {
+  const url = typeof window === "undefined" ? "/steps?count=" : `${window.location.origin}/steps?count=`;
+  const toast = useToast();
+  return (
+    <>
+      <div className="px-4 py-3">
+        <p className="mb-2">Daily goal</p>
+        <Segmented
+          value={String(goal)}
+          options={[6000, 8000, 10000, 12000].map((n) => ({ value: String(n), label: `${n / 1000}k` }))}
+          onChange={(v) => void updateProfile({ stepGoal: Number(v) })}
+        />
+      </div>
+      <details className="group px-4 py-3">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between [&::-webkit-details-marker]:hidden">
+          <span>
+            <span className="block">Send steps from your iPhone</span>
+            <span className="block text-sm text-muted">One tap, or every evening, with Shortcuts</span>
+          </span>
+          <ChevronRight size={18} className="text-faint transition-transform group-open:rotate-90" aria-hidden />
+        </summary>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-muted">
+          <li>Open the Shortcuts app and create a new shortcut.</li>
+          <li>
+            Add <b className="text-text">Find Health Samples</b>: Type is Steps, Start Date is Today.
+          </li>
+          <li>
+            Add <b className="text-text">Calculate Statistics</b>: Sum of the Health Samples.
+          </li>
+          <li>
+            Add <b className="text-text">Open URL</b> with the link below, then put the <b className="text-text">Sum</b> variable right after
+            &ldquo;count=&rdquo;.
+          </li>
+          <li>Sign in to sync in Safari once (Settings → Account), so the steps reach this app.</li>
+          <li>Optional: in Automation, run it every evening at 10 pm.</li>
+        </ol>
+        <div className="mt-3 flex items-center gap-2">
+          <code className="min-w-0 flex-1 truncate rounded-2xl bg-surface-2 px-3 py-2.5 text-xs" translate="no">
+            {url}
+          </code>
+          <button
+            className="btn shrink-0 text-sm"
+            onClick={() => {
+              void navigator.clipboard?.writeText(url).then(() => toast("Link copied"));
+            }}
+          >
+            Copy
+          </button>
+        </div>
+      </details>
+    </>
   );
 }

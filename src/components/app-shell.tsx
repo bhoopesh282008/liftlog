@@ -7,10 +7,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { db, PROFILE_ID } from "@/lib/db";
+import { DEMO_FLAG, exitDemo } from "@/lib/demo";
 import { CHANGE_EVENT, closeStaleWorkouts, runAutoAdjust } from "@/lib/repo";
 import { supabase, syncConfigured, syncNow } from "@/lib/sync";
 import { mmss, RestTimerProvider, useRestTimer } from "./rest-timer";
-import { SmoothScroll } from "./smooth-scroll";
 import { SlidingNumber } from "./motion-primitives/sliding-number";
 import { AmbientBackdrop } from "./ambient-backdrop";
 import { Splash } from "./splash";
@@ -35,7 +35,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Motion honours the system's reduced-motion setting app-wide.
   return (
     <MotionConfig reducedMotion="user">
-      {hydrated && <SmoothScroll />}
       {hydrated ? (
         <ToastProvider>
           <RestTimerProvider>
@@ -56,32 +55,35 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
   // undefined while loading, null when there is no profile yet.
   const profile = useLiveQuery(async () => (await db.profile.get(PROFILE_ID)) ?? null, []);
   const onboarding = pathname.startsWith("/onboarding");
+  // The Shortcut's landing page works without setup (it opens in Safari).
+  const standalone = pathname.startsWith("/steps");
   const needsOnboarding = profile === null || (profile && !profile.onboarded);
 
   useEffect(() => {
-    if (profile === undefined) return;
+    if (profile === undefined || standalone) return;
     if (needsOnboarding && !onboarding) router.replace("/onboarding");
     else if (!needsOnboarding && (onboarding || pathname === "/")) router.replace("/workout");
-  }, [profile, needsOnboarding, onboarding, pathname, router]);
+  }, [profile, needsOnboarding, onboarding, standalone, pathname, router]);
 
   useBackgroundJobs(Boolean(profile?.onboarded));
 
-  const waiting = profile === undefined || (needsOnboarding && !onboarding) || (!needsOnboarding && pathname === "/");
+  const waiting = profile === undefined || (!standalone && ((needsOnboarding && !onboarding) || (!needsOnboarding && pathname === "/")));
   useEffect(() => {
     if (!waiting) onReady();
   }, [waiting, onReady]);
 
   if (waiting) return <div className="min-h-dvh" />;
-  if (onboarding) return <main className="pt-safe mx-auto min-h-dvh w-full max-w-lg">{children}</main>;
+  if (onboarding || standalone) return <main className="pt-safe mx-auto min-h-dvh w-full max-w-lg">{children}</main>;
 
   return (
     <>
       <AmbientBackdrop />
       <div aria-hidden className="scroll-edge" />
       <main className="pt-safe pb-nav mx-auto min-h-dvh w-full max-w-2xl">
+        <DemoBanner />
         <InstallHint />
-        {/* Keyed by route so each tab plays its enter animation. */}
-        <div key={pathname} className="animate-page">
+        {/* Keyed by route: tabs crossfade, deeper pages push in from the right. */}
+        <div key={pathname} className={pathname.split("/").filter(Boolean).length > 1 ? "animate-push" : "animate-tab"}>
           {children}
         </div>
       </main>
@@ -105,7 +107,7 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
                   }`}
                   aria-current={active ? "page" : undefined}
                 >
-                  {active && <motion.span layoutId="tab-pill" aria-hidden className="absolute inset-0 rounded-full bg-accent-soft" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+                  {active && <motion.span layoutId="tab-pill" aria-hidden className="absolute inset-0 rounded-full bg-accent-soft" transition={{ type: "spring", stiffness: 560, damping: 42, mass: 0.8 }} />}
                   <Icon size={21} strokeWidth={active ? 2.4 : 1.9} className="relative" aria-hidden />
                   <span className="relative">{label}</span>
                 </Link>
@@ -262,6 +264,23 @@ function InstallHint() {
         }}
       >
         <X size={18} />
+      </button>
+    </div>
+  );
+}
+
+// Shown while the device holds the demo's sample data. Starting fresh wipes
+// it, since none of it ever went to the sync queue.
+function DemoBanner() {
+  const demo = useLiveQuery(async () => (await db.meta.get(DEMO_FLAG))?.value === true, []);
+  if (!demo) return null;
+  return (
+    <div className="glass-control mx-4 mt-3 flex items-center gap-3 py-1.5 pr-1.5 pl-4 text-sm">
+      <span className="flex-1">
+        <b className="font-semibold">Demo data.</b> <span className="text-muted">Explore freely, then start your own.</span>
+      </span>
+      <button className="btn btn-primary min-h-9 px-4 text-sm" onClick={() => void exitDemo()}>
+        Start fresh
       </button>
     </div>
   );

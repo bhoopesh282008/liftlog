@@ -23,6 +23,7 @@ export interface Profile extends SyncFields {
   restSeconds: number;
   onboarded: boolean;
   waterGoal?: number; // glasses of 250 ml
+  stepGoal?: number; // daily steps; unset means DEFAULT_STEP_GOAL
   proteinPerKg?: number; // grams of protein per kg of body weight
   diet?: "veg" | "egg" | "nonveg";
   trainingDays?: number[]; // planned weekdays, 0 = Sunday
@@ -153,6 +154,9 @@ export interface DayLog extends SyncFields {
   // Ticked-off pills. Creatine stays in `creatine`; whey and mass gainer
   // are logged as food instead.
   supplements?: SupplementId[];
+  // Steps walked that day (own record: `<date>:steps`), typed in or sent
+  // by the iPhone Shortcut.
+  steps?: number;
 }
 
 export interface OutboxItem {

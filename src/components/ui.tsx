@@ -3,7 +3,6 @@
 import { Minus, Plus, X } from "lucide-react";
 import { AnimatePresence, motion, useDragControls } from "motion/react";
 import { useEffect, type ReactNode } from "react";
-import { pauseSmoothScroll, resumeSmoothScroll } from "./smooth-scroll";
 
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: string; children: ReactNode }) {
   // Drag the grabber or title down to dismiss, as on iPhone. Motion keeps the
@@ -16,11 +15,9 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    pauseSmoothScroll();
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
-      resumeSmoothScroll();
     };
   }, [open, onClose]);
 
@@ -62,7 +59,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
                 <X size={20} />
               </button>
             </div>
-            <div className="overflow-y-auto overscroll-contain px-5 pb-5" data-lenis-prevent>
+            <div className="overflow-y-auto overscroll-contain px-5 pb-5">
               {children}
             </div>
           </motion.div>
@@ -78,7 +75,7 @@ export function Bar({ value, max, tone = "accent", thick = false }: { value: num
   return (
     <div className={`${thick ? "h-3" : "h-2"} overflow-hidden rounded-full bg-track`}>
       <div
-        className="animate-grow h-full w-full rounded-full transition-transform duration-500 ease-out"
+        className="h-full w-full rounded-full transition-transform duration-400 ease-out"
         style={{
           transform: `translateX(${pct - 100}%)`,
           background: over ? "var(--pr)" : tone === "accent" ? "var(--accent)" : "var(--faint)",
