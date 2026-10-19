@@ -83,7 +83,7 @@ Each one has a single job. Anything heavy loads only where it is used.
 | React Bits SplitText (GSAP) | Headline rising in letter by letter | Onboarding welcome |
 | React Bits ClickSpark | Volt sparks when you log a set | Workout Log button |
 | React Bits ShinyText | A sheen across the badge when a PR lands | Workout "New PR" |
-| Motion | Tab pill sliding between tabs; app-wide reduced-motion | App shell |
+| Motion | Tab pill (shared layout), sheet slide and flick-to-dismiss, toast and rest-dock exits; app-wide reduced-motion | App shell, `Sheet`, toasts |
 | Sliding Number (motion-primitives, via 21st.dev) | Odometer digits on the rest timer | Rest dock |
 | Lenis | Smooth wheel scrolling, desktop only (touch stays native) | App shell |
 | Vanta FOG (three.js r134) | Animated volt fog backdrop, loaded on demand | Onboarding welcome |

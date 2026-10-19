@@ -1,21 +1,14 @@
 "use client";
 
 import { Minus, Plus, X } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, motion, useDragControls } from "motion/react";
+import { useEffect, type ReactNode } from "react";
 import { pauseSmoothScroll, resumeSmoothScroll } from "./smooth-scroll";
 
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: string; children: ReactNode }) {
-  // Drag the grabber or title down to dismiss, as on iPhone.
-  const [dragY, setDragY] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const startY = useRef<number | null>(null);
-  const endDrag = () => {
-    if (startY.current === null) return;
-    startY.current = null;
-    setDragging(false);
-    if (dragY > 90) onClose();
-    setDragY(0);
-  };
+  // Drag the grabber or title down to dismiss, as on iPhone. Motion keeps the
+  // flick's velocity, so a quick flick closes it and a slow pull springs back.
+  const drag = useDragControls();
 
   useEffect(() => {
     if (!open) return;
@@ -31,42 +24,51 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     };
   }, [open, onClose]);
 
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
-      <button aria-label="Close" className="animate-fade absolute inset-0 bg-black/40" onClick={onClose} />
-      <div
-        className="animate-sheet relative flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-[28px] bg-surface shadow-[0_-8px_32px_-12px_rgb(0_0_0/0.3)] sm:rounded-[28px]"
-        style={{
-          paddingBottom: "env(safe-area-inset-bottom)",
-          transform: dragY ? `translateY(${dragY}px)` : undefined,
-          transition: dragging ? "none" : "transform 200ms cubic-bezier(0.32, 0.72, 0, 1)",
-        }}
-      >
-        <div className="flex items-start justify-between pr-3 pl-5">
-          <div
-            className="flex-1 cursor-grab touch-none pt-2 pb-2 select-none"
-            onPointerDown={(e) => {
-              startY.current = e.clientY;
-              setDragging(true);
-              e.currentTarget.setPointerCapture(e.pointerId);
+    <AnimatePresence>
+      {open && (
+        <div key="sheet" className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
+          <motion.button
+            aria-label="Close"
+            className="absolute inset-0 bg-black/40"
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          />
+          <motion.div
+            className="relative flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-[28px] bg-surface shadow-[0_-8px_32px_-12px_rgb(0_0_0/0.3)] sm:rounded-[28px]"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", bounce: 0, visualDuration: 0.32 }}
+            drag="y"
+            dragListener={false}
+            dragControls={drag}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.7 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 90 || info.velocity.y > 500) onClose();
             }}
-            onPointerMove={(e) => startY.current !== null && setDragY(Math.max(0, e.clientY - startY.current))}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
           >
-            <span aria-hidden className="mx-auto mb-2.5 block h-1.5 w-10 rounded-full bg-line-strong sm:hidden" />
-            <h2 className="text-lg font-semibold tracking-[-0.01em]">{title}</h2>
-          </div>
-          <button className="btn btn-ghost btn-icon mt-2" onClick={onClose} aria-label="Close">
-            <X size={20} />
-          </button>
+            <div className="flex items-start justify-between pr-3 pl-5">
+              <div className="flex-1 cursor-grab touch-none pt-2 pb-2 select-none active:cursor-grabbing" onPointerDown={(e) => drag.start(e)}>
+                <span aria-hidden className="mx-auto mb-2.5 block h-1.5 w-10 rounded-full bg-line-strong sm:hidden" />
+                <h2 className="text-lg font-semibold tracking-[-0.01em]">{title}</h2>
+              </div>
+              <button className="btn btn-ghost btn-icon mt-2" onClick={onClose} aria-label="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="overflow-y-auto overscroll-contain px-5 pb-5" data-lenis-prevent>
+              {children}
+            </div>
+          </motion.div>
         </div>
-        <div className="overflow-y-auto overscroll-contain px-5 pb-5" data-lenis-prevent>
-          {children}
-        </div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -76,9 +78,9 @@ export function Bar({ value, max, tone = "accent", thick = false }: { value: num
   return (
     <div className={`${thick ? "h-3" : "h-2"} overflow-hidden rounded-full bg-track`}>
       <div
-        className="animate-grow h-full rounded-full transition-[width] duration-500 ease-out"
+        className="animate-grow h-full w-full rounded-full transition-transform duration-500 ease-out"
         style={{
-          width: `${pct}%`,
+          transform: `translateX(${pct - 100}%)`,
           background: over ? "var(--pr)" : tone === "accent" ? "var(--accent)" : "var(--faint)",
         }}
       />

@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { db } from "./db";
 import type { SyncedTable } from "./types";
 
@@ -11,10 +11,14 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const syncConfigured = Boolean(url && anonKey);
 
-let client: SupabaseClient | null = null;
-export function supabase(): SupabaseClient | null {
-  if (!syncConfigured) return null;
-  client ??= createClient(url!, anonKey!, { auth: { persistSession: true, autoRefreshToken: true } });
+// The Supabase client (~60 KB gzipped) loads only when sync is configured,
+// so on-device-only installs never download it.
+let client: Promise<SupabaseClient> | null = null;
+export function supabase(): Promise<SupabaseClient | null> {
+  if (!syncConfigured) return Promise.resolve(null);
+  client ??= import("@supabase/supabase-js").then(({ createClient }) =>
+    createClient(url!, anonKey!, { auth: { persistSession: true, autoRefreshToken: true } }),
+  );
   return client;
 }
 
@@ -35,7 +39,7 @@ export function syncNow(): Promise<SyncResult> {
 }
 
 async function doSync(): Promise<SyncResult> {
-  const sb = supabase();
+  const sb = await supabase();
   if (!sb) return { pushed: 0, pulled: 0 };
   const { data: auth } = await sb.auth.getSession();
   const userId = auth.session?.user.id;

@@ -48,3 +48,14 @@ next-env.d.ts
 
 # python caches (UI/UX Pro Max skill scripts)
 __pycache__/
+
+# Other coding agents' copies of the Motion AI kit (not used in this repo)
+/.agents/
+/.amp/
+/.codex/
+/.copilot/
+/.cursor/
+/.gemini/
+/.opencode/
+/.tracker/
+/opencode.jsonc

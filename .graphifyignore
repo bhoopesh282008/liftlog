@@ -1,0 +1,15 @@
+# Keep the knowledge graph about LiftLog itself: skip vendored agent skills
+# and the per-tool configs that skill installers write.
+.claude/
+.agents/
+.amp/
+.codex/
+.copilot/
+.cursor/
+.gemini/
+.opencode/
+.tracker/
+.playwright-cli/
+.mcp.json
+opencode.jsonc
+skills-lock.json

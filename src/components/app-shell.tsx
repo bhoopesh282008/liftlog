@@ -2,13 +2,13 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChartLine, Dumbbell, Settings, Share, Timer, Utensils, X } from "lucide-react";
-import { MotionConfig, motion } from "motion/react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { db, PROFILE_ID } from "@/lib/db";
 import { CHANGE_EVENT, closeStaleWorkouts, runAutoAdjust } from "@/lib/repo";
-import { supabase, syncNow } from "@/lib/sync";
+import { supabase, syncConfigured, syncNow } from "@/lib/sync";
 import { mmss, RestTimerProvider, useRestTimer } from "./rest-timer";
 import { SmoothScroll } from "./smooth-scroll";
 import { SlidingNumber } from "./motion-primitives/sliding-number";
@@ -131,9 +131,10 @@ function useBackgroundJobs(ready: boolean) {
 
   // Sync soon after each change, when the connection returns, and once a minute.
   useEffect(() => {
-    const sb = supabase();
-    if (!sb) return;
+    if (!syncConfigured) return;
     let debounce: ReturnType<typeof setTimeout>;
+    let unsubscribe = () => {};
+    let cancelled = false;
     const soon = () => {
       clearTimeout(debounce);
       debounce = setTimeout(() => void syncNow(), 1500);
@@ -142,13 +143,18 @@ function useBackgroundJobs(ready: boolean) {
     window.addEventListener(CHANGE_EVENT, soon);
     window.addEventListener("online", soon);
     const every = setInterval(() => document.visibilityState === "visible" && void syncNow(), 60_000);
-    const { data } = sb.auth.onAuthStateChange(() => soon());
+    void supabase().then((sb) => {
+      if (!sb || cancelled) return;
+      const { data } = sb.auth.onAuthStateChange(() => soon());
+      unsubscribe = () => data.subscription.unsubscribe();
+    });
     return () => {
+      cancelled = true;
       clearTimeout(debounce);
       clearInterval(every);
       window.removeEventListener(CHANGE_EVENT, soon);
       window.removeEventListener("online", soon);
-      data.subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
 }
@@ -164,7 +170,6 @@ function RestDock({ linkToWorkout }: { linkToWorkout: boolean }) {
     document.documentElement.style.setProperty("--dock", visible ? "68px" : "0px");
   }, [visible]);
 
-  if (!visible) return null;
   const pct = t.total ? t.remaining / t.total : 0;
   const time = (
     <span className="flex items-baseline gap-2">
@@ -182,30 +187,44 @@ function RestDock({ linkToWorkout }: { linkToWorkout: boolean }) {
       <span className="text-xs text-muted">{t.endAt ? "rest" : "rest done"}</span>
     </span>
   );
+  // Springs up when a rest starts and drops away when it ends.
   return (
-    <div className="animate-enter mb-2" role="timer" aria-label="Rest timer">
-      <div className="relative flex h-14 items-center justify-between overflow-hidden rounded-full border border-line bg-surface pr-1.5 pl-5 shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)]">
-        <span
-          aria-hidden
-          className="absolute inset-y-0 left-0 w-full origin-left bg-accent-soft transition-transform duration-300 ease-linear"
-          style={{ transform: `scaleX(${pct})` }}
-        />
-        <span className="relative">{linkToWorkout ? <Link href="/workout">{time}</Link> : time}</span>
-        {t.endAt && (
-          <span className="relative flex gap-1">
-            <button className="btn btn-icon num min-h-11 bg-transparent text-sm" onClick={() => t.add(-15)} aria-label="15 seconds less">
-              −15
-            </button>
-            <button className="btn btn-icon num min-h-11 bg-transparent text-sm" onClick={() => t.add(15)} aria-label="15 seconds more">
-              +15
-            </button>
-            <button className="btn min-h-11 bg-surface px-3 text-sm" onClick={t.stop}>
-              Skip
-            </button>
-          </span>
-        )}
-      </div>
-    </div>
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          key="dock"
+          className="mb-2"
+          role="timer"
+          aria-label="Rest timer"
+          initial={{ opacity: 0, y: 16, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 16, scale: 0.96 }}
+          transition={{ type: "spring", bounce: 0.15, visualDuration: 0.3 }}
+        >
+          <div className="relative flex h-14 items-center justify-between overflow-hidden rounded-full border border-line bg-surface pr-1.5 pl-5 shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)]">
+            <span
+              aria-hidden
+              className="absolute inset-y-0 left-0 w-full origin-left bg-accent-soft transition-transform duration-300 ease-linear"
+              style={{ transform: `scaleX(${pct})` }}
+            />
+            <span className="relative">{linkToWorkout ? <Link href="/workout">{time}</Link> : time}</span>
+            {t.endAt && (
+              <span className="relative flex gap-1">
+                <button className="btn btn-icon num min-h-11 bg-transparent text-sm" onClick={() => t.add(-15)} aria-label="15 seconds less">
+                  −15
+                </button>
+                <button className="btn btn-icon num min-h-11 bg-transparent text-sm" onClick={() => t.add(15)} aria-label="15 seconds more">
+                  +15
+                </button>
+                <button className="btn min-h-11 bg-surface px-3 text-sm" onClick={t.stop}>
+                  Skip
+                </button>
+              </span>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

@@ -21,11 +21,18 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
   const lastSync = useLiveQuery(async () => (await db.meta.get("lastSyncAt"))?.value as number | undefined, []);
 
   useEffect(() => {
-    const sb = supabase();
-    if (!sb) return;
-    void sb.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = sb.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => data.subscription.unsubscribe();
+    let unsubscribe = () => {};
+    let cancelled = false;
+    void supabase().then((sb) => {
+      if (!sb || cancelled) return;
+      void sb.auth.getSession().then(({ data }) => setSession(data.session));
+      const { data } = sb.auth.onAuthStateChange((_e, s) => setSession(s));
+      unsubscribe = () => data.subscription.unsubscribe();
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   if (!syncConfigured) {
@@ -39,7 +46,7 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
     );
   }
 
-  const sb = supabase()!;
+  const auth = async () => (await supabase())!.auth;
 
   if (session) {
     return (
@@ -67,7 +74,7 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
           >
             <RefreshCw size={16} className={busy ? "animate-spin" : ""} /> Sync now
           </button>
-          <button className="btn btn-ghost" onClick={() => void sb.auth.signOut()}>
+          <button className="btn btn-ghost" onClick={() => void auth().then((a) => a.signOut())}>
             Sign out
           </button>
         </div>
@@ -84,14 +91,14 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
         setBusy(true);
         setMsg("");
         if (stage === "email") {
-          const { error } = await sb.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true } });
+          const { error } = await (await auth()).signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true } });
           if (error) setMsg(error.message);
           else {
             setStage("code");
             setMsg(`We sent a code to ${email.trim()}.`);
           }
         } else {
-          const { error } = await sb.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
+          const { error } = await (await auth()).verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
           if (error) setMsg("That code didn't work. Check it and try again.");
           else void syncNow();
         }

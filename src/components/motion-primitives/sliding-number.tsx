@@ -2,14 +2,14 @@
 
 // Sliding Number from motion-primitives by ibelick (MIT), as listed on
 // 21st.dev. Digits roll like an odometer. LiftLog changes: plain digits under
-// reduced motion, and the inner glyph renamed so it doesn't shadow Number.
+// reduced motion, the inner glyph renamed so it doesn't shadow Number, and the
+// current useTransform syntax (the (value, fn) form is deprecated).
 import { useEffect, useId } from 'react';
 import {
   MotionValue,
   motion,
   useSpring,
   useTransform,
-  motionValue,
   useReducedMotion,
 } from 'motion/react';
 import useMeasure from 'react-use-measure';
@@ -23,8 +23,7 @@ const TRANSITION = {
 
 function Digit({ value, place }: { value: number; place: number }) {
   const valueRoundedToPlace = Math.floor(value / place) % 10;
-  const initial = motionValue(valueRoundedToPlace);
-  const animatedValue = useSpring(initial, TRANSITION);
+  const animatedValue = useSpring(valueRoundedToPlace, TRANSITION);
 
   useEffect(() => {
     animatedValue.set(valueRoundedToPlace);
@@ -44,9 +43,9 @@ function Glyph({ mv, number }: { mv: MotionValue<number>; number: number }) {
   const uniqueId = useId();
   const [ref, bounds] = useMeasure();
 
-  const y = useTransform(mv, (latest) => {
+  const y = useTransform(() => {
     if (!bounds.height) return 0;
-    const placeValue = latest % 10;
+    const placeValue = mv.get() % 10;
     const offset = (10 + number - placeValue) % 10;
     let memo = offset * bounds.height;
 
