@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-// Vanta's FOG effect (three.js r134) in volt on graphite, behind the
+// Vanta's FOG effect (three.js r134) in red on graphite, behind the
 // onboarding welcome. three.js and Vanta are loaded on demand here, so the
 // rest of the app never downloads them. It only starts after the welcome has
 // painted, never under reduced motion, and the plain graphite background
@@ -25,9 +25,9 @@ export function VantaFog({ className = "" }: { className?: string }) {
           mouseControls: true,
           touchControls: true,
           gyroControls: false,
-          highlightColor: 0xc5f04a,
-          midtoneColor: 0x2c3a0e,
-          lowlightColor: 0x111509,
+          highlightColor: 0xff4d4d,
+          midtoneColor: 0x3a0c0f,
+          lowlightColor: 0x150707,
           baseColor: 0x0a0b0c,
           blurFactor: 0.62,
           speed: 0.9,

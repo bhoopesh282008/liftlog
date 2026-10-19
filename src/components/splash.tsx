@@ -57,9 +57,9 @@ export function Splash({ ready }: { ready: boolean }) {
       <div
         aria-hidden
         className="splash-wash pointer-events-none absolute size-[560px] rounded-full"
-        style={{ background: "radial-gradient(circle, rgb(197 240 74 / 0.14), transparent 62%)" }}
+        style={{ background: "radial-gradient(circle, rgb(255 77 77 / 0.14), transparent 62%)" }}
       />
-      {/* Volt light falling across the screen; fades in over the CSS wash
+      {/* Red light falling across the screen; fades in over the CSS wash
           once WebGL has drawn its first frame. */}
       <SoffitGradient className="absolute inset-0 size-full" />
       <div className="splash-lockup relative flex flex-col items-center gap-7">
@@ -81,7 +81,7 @@ export function Splash({ ready }: { ready: boolean }) {
 function Barbell() {
   const plate = (h: number, side: "l" | "r", delay: number) => (
     <span
-      className={`splash-plate-${side} block rounded-[5px] bg-[#c5f04a]`}
+      className={`splash-plate-${side} block rounded-[5px] bg-[#ff4d4d]`}
       style={{ width: 13, height: h, "--d": `${delay}ms` } as CSSProperties}
     />
   );
@@ -89,7 +89,7 @@ function Barbell() {
     <div aria-hidden className="splash-mark flex items-center gap-[5px]">
       {plate(42, "l", 360)}
       {plate(70, "l", 240)}
-      <span className="splash-bar block h-[12px] w-[60px] rounded-[4px] bg-[#c5f04a]" />
+      <span className="splash-bar block h-[12px] w-[60px] rounded-[4px] bg-[#ff4d4d]" />
       {plate(70, "r", 240)}
       {plate(42, "r", 360)}
     </div>

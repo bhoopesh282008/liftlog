@@ -39,7 +39,7 @@ export function OnboardingScreen() {
       <div className="dark-scope relative isolate flex min-h-dvh flex-col overflow-hidden bg-[#0a0b0c] px-6 pt-16 pb-10 text-[#f2f3f1]">
         <VantaFog className="absolute inset-0 -z-10" />
         <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-2/3 bg-gradient-to-t from-[#0a0b0c] via-[#0a0b0c]/85 to-transparent" />
-        <div className="animate-enter mb-10 flex size-14 items-center justify-center rounded-2xl bg-[#c5f04a]/15 text-[#c5f04a]">
+        <div className="animate-enter mb-10 flex size-14 items-center justify-center rounded-2xl bg-[#ff4d4d]/15 text-[#ff4d4d]">
           <Dumbbell size={28} aria-hidden />
         </div>
         <Headline text="Build muscle. Stay lean." />
@@ -47,7 +47,7 @@ export function OnboardingScreen() {
           Log sets in two taps, track protein without the guesswork, and see if it&apos;s working.
         </p>
         <div className="animate-enter mt-auto space-y-3 pt-10" style={{ animationDelay: "600ms" }}>
-          <button className="btn w-full bg-[#c5f04a] font-semibold text-[#0f1405] hover:bg-[#d4f56f]" onClick={next}>
+          <button className="btn w-full bg-[#ff4d4d] font-semibold text-[#1a0505] hover:bg-[#ff6363]" onClick={next}>
             Get started
           </button>
           {syncConfigured && <SignInCard compact title="Already use LiftLog on another device?" />}

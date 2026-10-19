@@ -1,7 +1,9 @@
 @import "tailwindcss";
 
-/* Volt on graphite: see docs/DESIGN.md. In light mode the lime becomes a
-   deep moss so accent text keeps 4.5:1 contrast. */
+/* Red on graphite: see docs/DESIGN.md. Light mode uses a deeper red so
+   accent text keeps 4.5:1 on the page and white text 5:1 on red buttons.
+   Dark mode's brighter red takes near-black button text instead: no single
+   red clears 4.5:1 both as text on graphite and under white text. */
 :root {
   --bg: #f3f4f1;
   --surface: #ffffff;
@@ -11,11 +13,11 @@
   --faint: #979b93;
   --line: rgb(17 19 17 / 0.08);
   --line-strong: rgb(17 19 17 / 0.14);
-  --accent: #4f7a0a;
-  --accent-soft: rgb(79 122 10 / 0.11);
+  --accent: #d61f2c;
+  --accent-soft: rgb(214 31 44 / 0.1);
   --on-accent: #ffffff;
-  --pr: #c2560c;
-  --pr-soft: rgb(194 86 12 / 0.12);
+  --pr: #b45309;
+  --pr-soft: rgb(180 83 9 / 0.12);
   --danger: #cc3333;
   --track: rgb(17 19 17 / 0.07);
   --card-shadow: 0 1px 2px rgb(17 19 17 / 0.04), 0 10px 28px -14px rgb(17 19 17 / 0.12);
@@ -34,11 +36,11 @@
     --faint: #64676e;
     --line: rgb(255 255 255 / 0.07);
     --line-strong: rgb(255 255 255 / 0.13);
-    --accent: #c5f04a;
-    --accent-soft: rgb(197 240 74 / 0.12);
-    --on-accent: #0f1405;
-    --pr: #ff8a3d;
-    --pr-soft: rgb(255 138 61 / 0.14);
+    --accent: #ff4d4d;
+    --accent-soft: rgb(255 77 77 / 0.14);
+    --on-accent: #1a0505;
+    --pr: #ffb020;
+    --pr-soft: rgb(255 176 32 / 0.14);
     --danger: #ff6b6b;
     --track: rgb(255 255 255 / 0.07);
     --card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
@@ -57,9 +59,9 @@
   --faint: #64676e;
   --line: rgb(255 255 255 / 0.07);
   --line-strong: rgb(255 255 255 / 0.13);
-  --accent: #c5f04a;
-  --accent-soft: rgb(197 240 74 / 0.12);
-  --on-accent: #0f1405;
+  --accent: #ff4d4d;
+  --accent-soft: rgb(255 77 77 / 0.14);
+  --on-accent: #1a0505;
   --track: rgb(255 255 255 / 0.07);
   --card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
   color-scheme: dark;

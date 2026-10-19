@@ -467,10 +467,10 @@ function ProgressionNote({ p }: { p: Progression }) {
   );
 }
 
-// Logging a set bursts volt sparks off the button (React Bits ClickSpark):
+// Logging a set bursts red sparks off the button (React Bits ClickSpark):
 // the one tap that matters most gets the most satisfying feedback.
 function LogSpark({ children }: { children: ReactNode }) {
-  const accent = useTokenColor("--accent", "#c5f04a");
+  const accent = useTokenColor("--accent", "#ff4d4d");
   return (
     <ClickSpark sparkColor={accent} sparkCount={10} sparkRadius={34} sparkSize={9} duration={480} className="h-auto! w-auto!">
       {children}

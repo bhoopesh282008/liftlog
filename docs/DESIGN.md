@@ -6,10 +6,10 @@ numbers, and motion that explains what just happened.
 
 ## Direction
 
-- **Volt on graphite.** A near-black graphite canvas and a single lime "volt"
-  accent. Lime marks the one thing to do or look at on each screen: the next
-  set, protein still to eat, the active tab. Nothing else is coloured, except
-  ember orange for PRs and red for destructive actions.
+- **Red on graphite.** A near-black graphite canvas and a single high-contrast
+  red accent. Red marks the one thing to do or look at on each screen: the
+  next set, protein still to eat, the active tab. Nothing else is coloured,
+  except amber for PRs.
 - **Numbers are the hero.** Weights, reps, grams and kcal are set large, tight
   and tabular. Labels and explanations stay small and quiet.
 - **Fewer boxes.** Cards are borderless surfaces a step lighter than the page.
@@ -25,13 +25,15 @@ numbers, and motion that explains what just happened.
 | `--text` | `#f2f3f1` | `#111311` | Primary text |
 | `--muted` | `#9a9ca3` | `#5d6159` | Secondary text |
 | `--faint` | `#64676e` | `#979b93` | Hints, inactive icons |
-| `--accent` | `#c5f04a` | `#4f7a0a` | The one action or value per screen |
-| `--on-accent` | `#0f1405` | `#ffffff` | Text on accent fills |
-| `--pr` | `#ff8a3d` | `#c2560c` | Personal records, over-target |
+| `--accent` | `#ff4d4d` | `#d61f2c` | The one action or value per screen |
+| `--on-accent` | `#1a0505` | `#ffffff` | Text on accent fills |
+| `--pr` | `#ffb020` | `#b45309` | Personal records, over-target |
 | `--danger` | `#ff6b6b` | `#cc3333` | Delete, errors |
 
-In light mode the lime becomes a deep moss so accent text keeps 4.5:1
-contrast on the page.
+Contrast (WCAG AA): light red is 4.6:1 on the page and 5.1:1 under white
+button text. Dark red is 6:1 on graphite and takes near-black button text (6:1),
+because no single red clears 4.5:1 both as text on graphite and under white
+text. Destructive actions share the red hue; their labels say what they do.
 
 ## Shape
 
@@ -69,7 +71,7 @@ Every animation answers "what changed?". All of it collapses to instant under
 - **Progress fills.** Bars grow from zero when they appear, so the number
   reads as progress, not a static graphic.
 - **Press.** Buttons and chips compress to 0.96 on press.
-- **Tab bar.** The lime pill slides to the tab you picked (Motion shared layout).
+- **Tab bar.** The red pill slides to the tab you picked (Motion shared layout).
 - **Haptics.** Logging a set and finishing a workout tick the phone (ios-haptics on iPhone, the vibration API elsewhere).
 - **Launch.** iPhone launch images are the splash's first frame (plain graphite), so there is no white flash before it plays.
 
@@ -83,13 +85,13 @@ Each one has a single job. Anything heavy loads only where it is used.
 | --- | --- | --- |
 | GSAP (`@gsap/react`) | Counting numbers up to their new value | `CountUp`: protein card |
 | React Bits SplitText (GSAP) | Headline rising in letter by letter | Onboarding welcome |
-| React Bits ClickSpark | Volt sparks when you log a set | Workout Log button |
+| React Bits ClickSpark | Red sparks when you log a set | Workout Log button |
 | React Bits ShinyText | A sheen across the badge when a PR lands | Workout "New PR" |
 | Motion | Tab pill (shared layout), sheet slide and flick-to-dismiss, toast and rest-dock exits; app-wide reduced-motion | App shell, `Sheet`, toasts |
 | Sliding Number (motion-primitives, via 21st.dev) | Odometer digits on the rest timer | Rest dock |
 | Lenis | Smooth wheel scrolling, desktop only (touch stays native) | App shell |
-| Vanta FOG (three.js r134) | Animated volt fog backdrop, loaded on demand | Onboarding welcome |
-| GetLayers "Soffit" (WebGL2) | Overhead volt light behind the launch splash | Splash |
+| Vanta FOG (three.js r134) | Animated red fog backdrop, loaded on demand | Onboarding welcome |
+| GetLayers "Soffit" (WebGL2) | Overhead red light behind the launch splash | Splash |
 
 React Bits and Sliding Number are copied into `src/components/` (that is how
 both are distributed) with small LiftLog fixes noted in each file.

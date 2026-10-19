@@ -3,16 +3,16 @@
 import { useEffect, useRef } from "react";
 
 // "Soffit", a free WebGL2 gradient layer from GetLayers AI (getlayers.ai),
-// recoloured from its shipped purple to LiftLog's graphite and volt. The
+// recoloured from its shipped purple to LiftLog's graphite and red. The
 // shader is theirs, verbatim. CONFIG is retuned: the stock framing (scale
 // 0.2, light from below) lit the whole phone screen, so here it zooms out and
 // turns the light to fall from above, like a gym spotlight over the bar.
 const CONFIG = {
   bgColor: "#0a0b0c",
-  colorA: "#0e1209",
-  colorB: "#26330b",
-  colorC: "#8db52a",
-  colorD: "#d4f27a",
+  colorA: "#140808",
+  colorB: "#3a0c0f",
+  colorC: "#c42630",
+  colorD: "#ff8a8a",
   scale: 1.2,
   speed: 0.33,
   tilt: 1.7,

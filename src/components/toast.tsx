@@ -24,7 +24,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={show}>
       {children}
-      {/* Always graphite, in both themes, so the lime action keeps its contrast. */}
+      {/* Always graphite, in both themes, so the red action keeps its contrast. */}
       <div
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4"
@@ -43,7 +43,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <span className="py-1.5">{toast.message}</span>
               {toast.action && (
                 <button
-                  className="min-h-10 rounded-full px-4 font-semibold text-[#c5f04a] transition-colors hover:bg-white/10"
+                  className="min-h-10 rounded-full px-4 font-semibold text-[#ff6b6b] transition-colors hover:bg-white/10"
                   onClick={() => {
                     toast.action!.run();
                     setToast(null);
