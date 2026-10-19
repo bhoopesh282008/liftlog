@@ -138,7 +138,9 @@ body {
   outline-offset: 2px;
   border-radius: 10px;
 }
-.input:focus-visible {
+/* Fields that show focus on their container instead. */
+.input:focus-visible,
+.bare-field:focus-visible {
   outline: none;
 }
 

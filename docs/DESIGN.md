@@ -118,7 +118,7 @@ removed in the animation rework.
 
 ## Steps
 
-A Steps card on the Food screen shows today against the goal (Settings →
+A Steps card on the Workout screen (below the session) shows today against the goal (Settings →
 Steps, 6k–12k), with a 7-day bar chart and calories walked. Steps are typed
 in, or sent by an iPhone Shortcut. The Shortcut reads Health, sums today's
 steps and opens `/steps?count=N`. That opens in Safari, which saves and syncs
@@ -132,3 +132,21 @@ water.
 straight into the local database, skipping the sync queue so it can never
 upload. A banner offers "Start fresh", which wipes the device. Sync sign-in
 is off during the demo.
+
+## Coach
+
+An AI coach (`/coach`, a fifth tab) answers questions from the person's own
+data and turns "2 rotis and dal for lunch" into a food proposal that is only
+logged when they tap Log (with Undo). The chat stays on the device.
+
+- The tab appears only when `/api/assistant` says the signed-in account is
+  allowed. The server checks the Supabase session and requires the email to be
+  on `ASSISTANT_EMAILS`, since every reply is billed to `ANTHROPIC_API_KEY`.
+  Both are server-only Vercel environment variables. Without them the coach is
+  hidden for everyone.
+- Model: `claude-haiku-5-5` (override with `ASSISTANT_MODEL`). The curated food
+  catalogue (never INDB) rides in the cached system prompt, so the coach logs
+  exact values by id when a dish matches and estimates otherwise.
+- Each request sends a plain-text summary built by `coachContext()` in
+  `src/lib/coach.ts`: today's food, 14 days of totals, weights, the last 8
+  workouts, steps and their own foods. It is capped at 16k characters.

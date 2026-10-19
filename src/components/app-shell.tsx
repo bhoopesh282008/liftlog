@@ -1,11 +1,12 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChartLine, Dumbbell, Settings, Share, Timer, Utensils, X } from "lucide-react";
+import { ChartLine, Dumbbell, Settings, Share, Sparkles, Timer, Utensils, X } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCoachEnabled } from "@/lib/coach-access";
 import { db, PROFILE_ID } from "@/lib/db";
 import { DEMO_FLAG, exitDemo } from "@/lib/demo";
 import { CHANGE_EVENT, closeStaleWorkouts, runAutoAdjust } from "@/lib/repo";
@@ -22,6 +23,8 @@ const TABS = [
   { href: "/progress", label: "Progress", icon: ChartLine },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+// Shown only to accounts the server allows (see /api/assistant).
+const COACH_TAB = { href: "/coach", label: "Coach", icon: Sparkles };
 
 const noopSubscribe = () => () => {};
 
@@ -66,6 +69,8 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
   }, [profile, needsOnboarding, onboarding, standalone, pathname, router]);
 
   useBackgroundJobs(Boolean(profile?.onboarded));
+  const coach = useCoachEnabled();
+  const tabs = coach ? [...TABS.slice(0, 3), COACH_TAB, TABS[3]] : TABS;
 
   const waiting = profile === undefined || (!standalone && ((needsOnboarding && !onboarding) || (!needsOnboarding && pathname === "/")));
   useEffect(() => {
@@ -96,7 +101,7 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
         <div className="pointer-events-auto mx-auto max-w-md">
           <RestDock linkToWorkout={!pathname.startsWith("/workout")} />
           <div className="glass-control flex p-1.5">
-            {TABS.map(({ href, label, icon: Icon }) => {
+            {tabs.map(({ href, label, icon: Icon }) => {
               const active = pathname.startsWith(href);
               return (
                 <Link
