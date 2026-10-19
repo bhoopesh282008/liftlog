@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { STARTUP_SCREENS, startupMedia, startupPixels } from "@/lib/startup-screens";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,7 +25,14 @@ export const metadata: Metadata = {
   title: "LiftLog",
   description: "Track your lifts and food, and see if you're building muscle while staying lean.",
   applicationName: "LiftLog",
-  appleWebApp: { capable: true, title: "LiftLog", statusBarStyle: "default" },
+  appleWebApp: {
+    capable: true,
+    title: "LiftLog",
+    // "default" tints the status bar from theme-color (per light/dark). The
+    // translucent style forces white text, unreadable on the light theme.
+    statusBarStyle: "default",
+    startupImage: STARTUP_SCREENS.map((s) => ({ url: `/startup/${startupPixels(s)}`, media: startupMedia(s) })),
+  },
   formatDetection: { telephone: false },
 };
 

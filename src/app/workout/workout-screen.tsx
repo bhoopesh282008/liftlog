@@ -12,6 +12,7 @@ import { SendToObsidian, useObsidianEnabled } from "@/components/send-to-obsidia
 import { useToast } from "@/components/toast";
 import { type Editing, SetSheet, showKg } from "@/components/set-sheet";
 import { Empty } from "@/components/ui";
+import { buzz, hapticRef } from "@/lib/haptics";
 import { useTokenColor } from "@/lib/use-token";
 import { MUSCLE_DAYS, muscleDay } from "@/lib/data/muscle-routines";
 import { addDays, dateKey } from "@/lib/dates";
@@ -222,7 +223,14 @@ export function WorkoutScreen() {
         </button>
         {active && (
           <>
-            <button className="btn btn-primary w-full" onClick={finish}>
+            <button
+              ref={hapticRef}
+              className="btn btn-primary w-full"
+              onClick={() => {
+                buzz(20);
+                void finish();
+              }}
+            >
               <Check size={18} /> Finish workout
             </button>
             {sessionSets.length === 0 && (
@@ -411,10 +419,13 @@ function ExerciseCard({
                   {first && (
                     <LogSpark>
                     <button
+                      ref={hapticRef}
                       className="btn btn-primary min-h-11 px-6"
-                      onClick={() =>
-                        s && (last.length || done.length) ? onLog(s.weightKg, s.reps) : onEdit({ exerciseId: exercise.id, weightKg: s?.weightKg ?? 0, reps: s?.reps ?? plan.repMin })
-                      }
+                      onClick={() => {
+                        buzz();
+                        if (s && (last.length || done.length)) onLog(s.weightKg, s.reps);
+                        else onEdit({ exerciseId: exercise.id, weightKg: s?.weightKg ?? 0, reps: s?.reps ?? plan.repMin });
+                      }}
                     >
                       Log
                     </button>

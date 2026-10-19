@@ -70,6 +70,8 @@ Every animation answers "what changed?". All of it collapses to instant under
   reads as progress, not a static graphic.
 - **Press.** Buttons and chips compress to 0.96 on press.
 - **Tab bar.** The lime pill slides to the tab you picked (Motion shared layout).
+- **Haptics.** Logging a set and finishing a workout tick the phone (ios-haptics on iPhone, the vibration API elsewhere).
+- **Launch.** iPhone launch images are the splash's first frame (plain graphite), so there is no white flash before it plays.
 
 UI motion animates only `transform` and `opacity`. The exceptions are the protein ring's stroke (a paint-only 92px SVG) and the two WebGL backdrops.
 
