@@ -24,7 +24,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={show}>
       {children}
-      {/* Always graphite, in both themes, so the red action keeps its contrast. */}
+      {/* Dark glass in both themes, so the red action keeps its contrast. */}
       <div
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4"
@@ -38,7 +38,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
               transition={{ type: "spring", bounce: 0.15, visualDuration: 0.25 }}
-              className="pointer-events-auto flex max-w-md items-center gap-3 rounded-full border border-white/10 bg-[#1e2023] py-1.5 pr-1.5 pl-5 text-sm font-medium text-[#f2f3f1] shadow-[0_16px_40px_-12px_rgb(0_0_0/0.5)]"
+              className="dark-scope glass-thick pointer-events-auto flex max-w-md items-center gap-3 rounded-full py-1.5 pr-1.5 pl-5 text-sm font-medium text-[#f2f3f1]"
             >
               <span className="py-1.5">{toast.message}</span>
               {toast.action && (

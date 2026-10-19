@@ -30,7 +30,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
         <div key="sheet" className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
           <motion.button
             aria-label="Close"
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -38,7 +38,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
             transition={{ duration: 0.2 }}
           />
           <motion.div
-            className="relative flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-[28px] bg-surface shadow-[0_-8px_32px_-12px_rgb(0_0_0/0.3)] sm:rounded-[28px]"
+            className="glass-thick flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-[28px] rounded-b-none sm:rounded-[28px]"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}

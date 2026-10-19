@@ -12,6 +12,7 @@ import { supabase, syncConfigured, syncNow } from "@/lib/sync";
 import { mmss, RestTimerProvider, useRestTimer } from "./rest-timer";
 import { SmoothScroll } from "./smooth-scroll";
 import { SlidingNumber } from "./motion-primitives/sliding-number";
+import { AmbientBackdrop } from "./ambient-backdrop";
 import { Splash } from "./splash";
 import { ToastProvider } from "./toast";
 
@@ -75,6 +76,8 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
 
   return (
     <>
+      <AmbientBackdrop />
+      <div aria-hidden className="scroll-edge" />
       <main className="pt-safe pb-nav mx-auto min-h-dvh w-full max-w-2xl">
         <InstallHint />
         {/* Keyed by route so each tab plays its enter animation. */}
@@ -90,7 +93,7 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
       >
         <div className="pointer-events-auto mx-auto max-w-md">
           <RestDock linkToWorkout={!pathname.startsWith("/workout")} />
-          <div className="flex rounded-full border border-line bg-surface/80 p-1.5 shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] backdrop-blur-xl">
+          <div className="glass-control flex p-1.5">
             {TABS.map(({ href, label, icon: Icon }) => {
               const active = pathname.startsWith(href);
               return (
@@ -201,7 +204,7 @@ function RestDock({ linkToWorkout }: { linkToWorkout: boolean }) {
           exit={{ opacity: 0, y: 16, scale: 0.96 }}
           transition={{ type: "spring", bounce: 0.15, visualDuration: 0.3 }}
         >
-          <div className="relative flex h-14 items-center justify-between overflow-hidden rounded-full border border-line bg-surface pr-1.5 pl-5 shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)]">
+          <div className="glass-control flex h-14 items-center justify-between overflow-hidden pr-1.5 pl-5">
             <span
               aria-hidden
               className="absolute inset-y-0 left-0 w-full origin-left bg-accent-soft transition-transform duration-300 ease-linear"

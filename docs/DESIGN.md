@@ -12,8 +12,12 @@ numbers, and motion that explains what just happened.
   except amber for PRs.
 - **Numbers are the hero.** Weights, reps, grams and kcal are set large, tight
   and tabular. Labels and explanations stay small and quiet.
-- **Fewer boxes.** Cards are borderless surfaces a step lighter than the page.
-  They separate by tone and space, not by outlines.
+- **Liquid Glass (web approximation).** Cards, controls, sheets and toasts
+  are a glass material over a slow ambient light (red, ember and cool blobs
+  drifting behind every page). Apple's Liquid Glass is a native iOS material
+  with no official web version; this approximates it with `backdrop-filter`
+  blur and saturation, a translucent tint, a 1px rim, a bright inner top edge
+  and a specular sheen.
 
 ## Tokens
 
@@ -21,10 +25,10 @@ numbers, and motion that explains what just happened.
 | --- | --- | --- | --- |
 | `--bg` | `#0a0b0c` | `#f3f4f1` | Page |
 | `--surface` | `#141517` | `#ffffff` | Cards, sheets, tab bar |
-| `--surface-2` | `#1e2023` | `#eceee9` | Inputs, chips, inner blocks |
+| `--surface-2` | `rgb(255 255 255 / .07)` | `rgb(17 19 17 / .055)` | Inputs, chips, inner blocks (translucent) |
 | `--text` | `#f2f3f1` | `#111311` | Primary text |
 | `--muted` | `#9a9ca3` | `#5d6159` | Secondary text |
-| `--faint` | `#64676e` | `#979b93` | Hints, inactive icons |
+| `--faint` | `#80838b` | `#737770` | Hints, inactive icons |
 | `--accent` | `#ff4d4d` | `#d61f2c` | The one action or value per screen |
 | `--on-accent` | `#1a0505` | `#ffffff` | Text on accent fills |
 | `--pr` | `#ffb020` | `#b45309` | Personal records, over-target |
@@ -34,6 +38,24 @@ Contrast (WCAG AA): light red is 4.6:1 on the page and 5.1:1 under white
 button text. Dark red is 6:1 on graphite and takes near-black button text (6:1),
 because no single red clears 4.5:1 both as text on graphite and under white
 text. Destructive actions share the red hue; their labels say what they do.
+
+## Glass
+
+| Class | Used for | Tint (dark / light) |
+| --- | --- | --- |
+| `.card`, `.glass` | Content cards (24px) | `rgb(30 31 34 / .55)` / `rgb(255 255 255 / .62)` |
+| `.glass-control` | Tab bar, rest dock (pill) | stronger tint |
+| `.glass-thick` | Sheets, toasts | stronger tint, 30px blur |
+
+- Blur is 22px with 170% saturation. Inner blocks (`--surface-2`) are
+  translucent fills without their own blur, because stacked blurs are expensive.
+- A scroll edge at the top softens content as it slides under the status bar,
+  as on iOS.
+- Contrast measured on glass, worst case over the ambient light: body text
+  12.5:1 dark / 14.4:1 light, muted text at least 4.87:1, faint hints at least 3.5:1.
+- Fallbacks: no `backdrop-filter` support, `prefers-reduced-transparency` or
+  `prefers-contrast: more` turn the glass into solid surfaces with a visible
+  rim and hide the ambient light.
 
 ## Shape
 
