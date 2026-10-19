@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChartLine, Dumbbell, Settings, Share, Sparkles, Timer, Utensils, X } from "lucide-react";
+import { ChartLine, Dumbbell, Ellipsis, Settings, Share, Sparkles, Timer, Utensils, X } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -252,12 +252,29 @@ function InstallHint() {
     return ios && !standalone && !dismissed;
   });
   if (!show) return null;
+  const chrome = /crios/i.test(navigator.userAgent);
   return (
     <div className="animate-enter mx-4 mt-3 flex items-start gap-3 rounded-2xl bg-accent-soft p-3 text-sm">
-      <Share size={18} className="mt-0.5 shrink-0 text-accent" />
-      <p className="flex-1">
-        Add LiftLog to your home screen so your logs stay safe on this iPhone: tap <b>Share</b>, then <b>Add to Home Screen</b>.
-      </p>
+      <Share size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+      <div className="flex-1">
+        <p>Add LiftLog to your home screen so your logs stay safe on this iPhone.</p>
+        {/* The browser's own Share button does this; the icon here is only a
+            picture. iOS 26 Safari tucks Share behind the ⋯ button. */}
+        <ol className="mt-1.5 list-decimal space-y-0.5 pl-4 text-muted">
+          {chrome ? (
+            <li>
+              Tap <b className="text-text">Share</b> in Chrome&apos;s address bar.
+            </li>
+          ) : (
+            <li>
+              In Safari, tap the <Ellipsis size={16} className="inline align-[-3px] text-text" aria-label="More" /> button next to the address bar, then <b className="text-text">Share</b>.
+            </li>
+          )}
+          <li>
+            Scroll down and tap <b className="text-text">Add to Home Screen</b> (under <b className="text-text">View More</b> if it&apos;s hidden), then <b className="text-text">Add</b>.
+          </li>
+        </ol>
+      </div>
       <button
         className="-m-2 flex size-10 shrink-0 items-center justify-center text-muted"
         aria-label="Dismiss"
