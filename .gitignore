@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# Public build settings only: the Supabase URL and publishable key ship in
+# the client bundle anyway. Secrets never go here.
+!.env.production
 
 # vercel
 .vercel
