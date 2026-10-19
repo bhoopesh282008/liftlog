@@ -13,7 +13,12 @@ import { INDB_ROWS } from "./indb-foods";
 // so switching never changes past logs.
 export type BuiltinSource = "indb" | "curated";
 
-export const BUILTIN_SOURCE: BuiltinSource = process.env.NEXT_PUBLIC_BUILTIN_FOODS === "curated" ? "curated" : "indb";
+// Fixed at build time. With NEXT_PUBLIC_BUILTIN_FOODS=curated this is false,
+// so the bundler drops withIndb() and the INDB rows with it: the public
+// build (.env.production) never ships INDB, even to code that asks for it.
+const INDB_IN_BUILD = process.env.NEXT_PUBLIC_BUILTIN_FOODS !== "curated";
+
+export const BUILTIN_SOURCE: BuiltinSource = INDB_IN_BUILD ? "indb" : "curated";
 
 export interface BuiltinFood {
   food: Food;
@@ -58,7 +63,7 @@ const cache = new Map<BuiltinSource, BuiltinFood[]>();
 export function builtinFoods(source: BuiltinSource = BUILTIN_SOURCE): BuiltinFood[] {
   let list = cache.get(source);
   if (!list) {
-    list = source === "indb" ? withIndb() : curated();
+    list = source === "indb" && INDB_IN_BUILD ? withIndb() : curated();
     cache.set(source, list);
   }
   return list;
