@@ -135,11 +135,12 @@ is off during the demo.
 
 ## Coach
 
-An AI coach (`/coach`, a fifth tab) answers questions from the person's own
+An AI coach answers questions from the person's own
 data and turns "2 rotis and dal for lunch" into a food proposal that is only
 logged when they tap Log (with Undo). The chat stays on the device.
 
-- The tab appears only when `/api/assistant` says the signed-in account is
+- A floating button (bottom right, every screen) opens it in a sheet; `/coach`
+  still shows it full screen. The button appears only when `/api/assistant` says the signed-in account is
   allowed. The server checks the Supabase session and requires the email to be
   on `ASSISTANT_EMAILS`, since replies run on the owner's key. All keys are
   server-only Vercel environment variables. Without them the coach is hidden

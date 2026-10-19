@@ -470,7 +470,8 @@ p {
 }
 
 .pb-nav {
-  padding-bottom: calc(104px + var(--dock, 0px) + env(safe-area-inset-bottom));
+  /* --fab: room for the floating coach button, when it shows. */
+  padding-bottom: calc(104px + var(--dock, 0px) + var(--fab, 0px) + env(safe-area-inset-bottom));
 }
 .pt-safe {
   padding-top: env(safe-area-inset-top);

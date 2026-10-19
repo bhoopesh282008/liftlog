@@ -1,11 +1,12 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChartLine, Dumbbell, Ellipsis, Settings, Share, Sparkles, Timer, Utensils, X } from "lucide-react";
+import { ChartLine, Dumbbell, Ellipsis, Settings, Share, Timer, Utensils, X } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { type CSSProperties, useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { CoachLauncher } from "@/app/coach/coach-launcher";
 import { useCoachEnabled } from "@/lib/coach-access";
 import { db, PROFILE_ID } from "@/lib/db";
 import { DEMO_FLAG, exitDemo } from "@/lib/demo";
@@ -23,8 +24,6 @@ const TABS = [
   { href: "/progress", label: "Progress", icon: ChartLine },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
-// Shown only to accounts the server allows (see /api/assistant).
-const COACH_TAB = { href: "/coach", label: "Coach", icon: Sparkles };
 
 const noopSubscribe = () => () => {};
 
@@ -70,7 +69,8 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
 
   useBackgroundJobs(Boolean(profile?.onboarded));
   const coach = useCoachEnabled();
-  const tabs = coach ? [...TABS.slice(0, 3), COACH_TAB, TABS[3]] : TABS;
+  // The coach floats on every screen, for accounts the server allows.
+  const launcher = coach && !pathname.startsWith("/coach");
 
   const waiting = profile === undefined || (!standalone && ((needsOnboarding && !onboarding) || (!needsOnboarding && pathname === "/")));
   useEffect(() => {
@@ -84,7 +84,7 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
     <>
       <AmbientBackdrop />
       <div aria-hidden className="scroll-edge" />
-      <main className="pt-safe pb-nav mx-auto min-h-dvh w-full max-w-2xl">
+      <main className="pt-safe pb-nav mx-auto min-h-dvh w-full max-w-2xl" style={launcher ? ({ "--fab": "64px" } as CSSProperties) : undefined}>
         <DemoBanner />
         <InstallHint />
         {/* Keyed by route: tabs crossfade, deeper pages push in from the right. */}
@@ -92,6 +92,7 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
           {children}
         </div>
       </main>
+      {launcher && <CoachLauncher />}
       {/* A floating dock: the page scrolls under it, and the rest timer
           docks on top like a mini player. */}
       <nav
@@ -101,7 +102,7 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
         <div className="pointer-events-auto mx-auto max-w-md">
           <RestDock linkToWorkout={!pathname.startsWith("/workout")} />
           <div className="glass-control flex p-1.5">
-            {tabs.map(({ href, label, icon: Icon }) => {
+            {TABS.map(({ href, label, icon: Icon }) => {
               const active = pathname.startsWith(href);
               return (
                 <Link

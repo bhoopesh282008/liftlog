@@ -53,9 +53,50 @@ async function readContext(): Promise<string> {
   );
 }
 
+export const clearCoachChat = () => saveChat([]);
+export const useCoachMessages = () => useLiveQuery(async () => ((await db.meta.get(CHAT_KEY))?.value as ChatMessage[] | undefined) ?? [], []);
+
+// The Coach tab page: the chat full screen.
 export function CoachScreen() {
   const enabled = useCoachEnabled();
-  const stored = useLiveQuery(async () => ((await db.meta.get(CHAT_KEY))?.value as ChatMessage[] | undefined) ?? [], []);
+  const messages = useCoachMessages();
+  if (messages === undefined) return null;
+  if (!enabled) {
+    return (
+      <div className="px-4 pt-5">
+        <h1 className="title mb-3">Coach</h1>
+        <p className="text-muted">
+          The coach isn&apos;t turned on for this account. Sign in under{" "}
+          <Link href="/settings" className="text-accent underline">
+            Settings
+          </Link>{" "}
+          with an account that has it.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-h-[calc(100dvh-140px)] flex-col px-4 pt-5">
+      <header className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="title">Coach</h1>
+          <p className="mt-0.5 text-sm text-muted">Knows your workouts, food and weight. AI can be wrong.</p>
+        </div>
+        {messages.length > 0 && (
+          <button className="btn btn-ghost btn-icon -mr-2" onClick={() => void clearCoachChat()} aria-label="Clear chat">
+            <Trash2 size={19} />
+          </button>
+        )}
+      </header>
+      <CoachChat />
+    </div>
+  );
+}
+
+// The conversation and its composer. On the page the composer floats above
+// the tab bar; in the sheet it sits at the sheet's bottom edge.
+export function CoachChat({ inSheet = false }: { inSheet?: boolean }) {
+  const stored = useCoachMessages();
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,35 +131,9 @@ export function CoachScreen() {
   };
 
   if (stored === undefined) return null;
-  if (!enabled) {
-    return (
-      <div className="px-4 pt-5">
-        <h1 className="title mb-3">Coach</h1>
-        <p className="text-muted">
-          The coach isn&apos;t turned on for this account. Sign in under{" "}
-          <Link href="/settings" className="text-accent underline">
-            Settings
-          </Link>{" "}
-          with an account that has it.
-        </p>
-      </div>
-    );
-  }
 
   return (
-    <div className="flex min-h-[calc(100dvh-140px)] flex-col px-4 pt-5">
-      <header className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="title">Coach</h1>
-          <p className="mt-0.5 text-sm text-muted">Knows your workouts, food and weight. AI can be wrong.</p>
-        </div>
-        {messages.length > 0 && (
-          <button className="btn btn-ghost btn-icon -mr-2" onClick={() => void saveChat([])} aria-label="Clear chat">
-            <Trash2 size={19} />
-          </button>
-        )}
-      </header>
-
+    <>
       <div className="flex-1 space-y-3" aria-live="polite">
         {messages.length === 0 && (
           <div className="card p-4">
@@ -162,7 +177,7 @@ export function CoachScreen() {
 
       <form
         className="sticky z-10 -mx-4 mt-3 px-4 py-2"
-        style={{ bottom: "calc(92px + var(--dock, 0px) + env(safe-area-inset-bottom))" }}
+        style={{ bottom: inSheet ? 0 : "calc(92px + var(--dock, 0px) + env(safe-area-inset-bottom))" }}
         onSubmit={(e) => {
           e.preventDefault();
           void send(draft);
@@ -189,7 +204,7 @@ export function CoachScreen() {
           </button>
         </div>
       </form>
-    </div>
+    </>
   );
 }
 
