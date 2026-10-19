@@ -141,12 +141,15 @@ logged when they tap Log (with Undo). The chat stays on the device.
 
 - The tab appears only when `/api/assistant` says the signed-in account is
   allowed. The server checks the Supabase session and requires the email to be
-  on `ASSISTANT_EMAILS`, since every reply is billed to `ANTHROPIC_API_KEY`.
-  Both are server-only Vercel environment variables. Without them the coach is
-  hidden for everyone.
-- Model: `claude-haiku-5-5` (override with `ASSISTANT_MODEL`). The curated food
-  catalogue (never INDB) rides in the cached system prompt, so the coach logs
-  exact values by id when a dish matches and estimates otherwise.
+  on `ASSISTANT_EMAILS`, since replies run on the owner's key. All keys are
+  server-only Vercel environment variables. Without them the coach is hidden
+  for everyone.
+- Provider: Google Gemini's free tier when `GEMINI_API_KEY` is set (model
+  `gemini-flash-latest`), otherwise Anthropic with `ANTHROPIC_API_KEY`
+  (`claude-haiku-5-5`). `ASSISTANT_MODEL` overrides either. On Gemini's free
+  tier Google may use prompts to improve its products.
+- The curated food catalogue (never INDB) rides in the system prompt, so the
+  coach logs exact values by id when a dish matches and estimates otherwise.
 - Each request sends a plain-text summary built by `coachContext()` in
   `src/lib/coach.ts`: today's food, 14 days of totals, weights, the last 8
   workouts, steps and their own foods. It is capped at 16k characters.

@@ -72,11 +72,13 @@ describe("/api/assistant", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon";
     process.env.ANTHROPIC_API_KEY = "test-key";
+    delete process.env.GEMINI_API_KEY;
     process.env.ASSISTANT_EMAILS = "Me@Example.com";
   });
   afterEach(() => {
     process.env = { ...env };
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   const fakeFetch = (email: string | null, reply?: unknown) =>
@@ -121,5 +123,34 @@ describe("/api/assistant", () => {
     expect(sent.model).toBe("claude-haiku-5-5");
     expect(sent.messages).toEqual([{ role: "user", content: "had dal" }]);
     expect(sent.system[1].text).toContain("Now: today");
+  });
+
+  it("uses Gemini when its key is set, and maps roles and tool calls", async () => {
+    process.env.GEMINI_API_KEY = "gem-key";
+    const f = fakeFetch("me@example.com", {
+      candidates: [{ content: { parts: [{ text: "thinking", thought: true }, { text: "Sure." }, { functionCall: { name: "propose_food_log", args: { meal: "dinner", items: [{ name: "Paneer", serving: "100 g", servings: 1, kcal: 265, protein: 18, carbs: 4, fat: 20 }] } } }] } }],
+    });
+    vi.stubGlobal("fetch", f);
+    const { POST } = await import("../app/api/assistant/route");
+    const res = await POST(req("POST", { messages: [{ role: "user", text: "hi" }, { role: "assistant", text: "Hello" }, { role: "user", text: "had paneer" }], context: "Now: today" }));
+    const body = await res.json();
+    expect(body.text).toBe("Sure.");
+    expect(body.proposal.meal).toBe("dinner");
+    const [url, init] = f.mock.calls.find(([u]) => String(u).includes("generativelanguage"))!;
+    expect(url).toContain("/models/gemini-flash-latest:generateContent");
+    const sent = JSON.parse(init!.body as string);
+    expect(sent.contents.map((c: { role: string }) => c.role)).toEqual(["user", "model", "user"]);
+    expect(sent.systemInstruction.parts[0].text).toContain("Now: today");
+    expect(sent.tools[0].functionDeclarations[0].name).toBe("propose_food_log");
+  });
+
+  it("reports a used-up free quota clearly", async () => {
+    process.env.GEMINI_API_KEY = "gem-key";
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => (url.endsWith("/auth/v1/user") ? Response.json({ email: "me@example.com", email_confirmed_at: "x" }) : new Response("quota", { status: 429 }))));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { POST } = await import("../app/api/assistant/route");
+    const res = await POST(req("POST", { messages: [{ role: "user", text: "hi" }] }));
+    expect(res.status).toBe(429);
+    expect((await res.json()).error).toContain("free AI quota");
   });
 });
