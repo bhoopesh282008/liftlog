@@ -7,14 +7,18 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/db";
 import { supabase, syncConfigured, syncNow } from "@/lib/sync";
 
-// Sign-in uses a 6-digit email code rather than a magic link: on iPhone a
-// link opens in Safari, not the home-screen app, so the session would land
-// in the wrong place.
+// Email + password, entirely inside the app. Emailed links open in Safari,
+// not the iPhone home-screen app, so the session would land in the wrong
+// place; Supabase's default email can't carry a code without custom SMTP.
+// Email confirmation is off in the Supabase project, so a new account
+// signs straight in.
+const MIN_PASSWORD = 8;
+
 export function SignInCard({ compact = false, title = "Sync across devices" }: { compact?: boolean; title?: string }) {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [stage, setStage] = useState<"email" | "code">("email");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const pending = useLiveQuery(() => db.outbox.count(), []) ?? 0;
@@ -83,6 +87,7 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
     );
   }
 
+  const valid = email.includes("@") && password.length >= (mode === "signup" ? MIN_PASSWORD : 1);
   return (
     <form
       className={compact ? "rounded-2xl border border-line p-4 text-left" : ""}
@@ -90,31 +95,72 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
         e.preventDefault();
         setBusy(true);
         setMsg("");
-        if (stage === "email") {
-          const { error } = await (await auth()).signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true } });
-          if (error) setMsg(error.message);
-          else {
-            setStage("code");
-            setMsg(`We sent a code to ${email.trim()}.`);
-          }
+        const a = await auth();
+        const creds = { email: email.trim(), password };
+        const { data, error } = mode === "signup" ? await a.signUp(creds) : await a.signInWithPassword(creds);
+        if (error) {
+          setMsg(
+            /invalid login/i.test(error.message)
+              ? "That email and password don't match. Check them, or create an account."
+              : /already registered/i.test(error.message)
+                ? "That email already has an account. Sign in instead."
+                : error.message,
+          );
+        } else if (data.session) {
+          setPassword("");
+          void syncNow();
         } else {
-          const { error } = await (await auth()).verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
-          if (error) setMsg("That code didn't work. Check it and try again.");
-          else void syncNow();
+          setMsg("Account created. Sign in to start syncing.");
+          setMode("signin");
         }
         setBusy(false);
       }}
     >
       <p className="mb-2 text-sm font-semibold">{title}</p>
-      {stage === "email" ? (
-        <input className="input" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-      ) : (
-        <input className="input num tracking-[0.3em]" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} />
-      )}
-      <button className="btn mt-2 w-full" disabled={busy || (stage === "email" ? !email.includes("@") : code.trim().length < 6)} type="submit">
-        {stage === "email" ? "Email me a sign-in code" : "Sign in"}
+      <label className="label mb-1 block" htmlFor="sync-email">
+        Email
+      </label>
+      <input
+        id="sync-email"
+        name="email"
+        className="input"
+        type="email"
+        autoComplete="email"
+        spellCheck={false}
+        placeholder="you@example.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <label className="label mt-2 mb-1 block" htmlFor="sync-password">
+        Password{mode === "signup" && ` (${MIN_PASSWORD}+ characters)`}
+      </label>
+      <input
+        id="sync-password"
+        name="password"
+        className="input"
+        type="password"
+        autoComplete={mode === "signup" ? "new-password" : "current-password"}
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      <button className="btn btn-primary mt-3 w-full" disabled={busy || !valid} type="submit">
+        {busy ? "One moment…" : mode === "signup" ? "Create account" : "Sign in"}
       </button>
-      {msg && <p className="mt-2 text-sm text-muted">{msg}</p>}
+      <button
+        type="button"
+        className="btn btn-ghost mt-1 w-full text-sm"
+        onClick={() => {
+          setMode(mode === "signup" ? "signin" : "signup");
+          setMsg("");
+        }}
+      >
+        {mode === "signup" ? "Have an account? Sign in" : "New here? Create an account"}
+      </button>
+      {msg && (
+        <p className="mt-2 text-sm text-muted" aria-live="polite">
+          {msg}
+        </p>
+      )}
     </form>
   );
 }

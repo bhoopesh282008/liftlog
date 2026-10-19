@@ -38,15 +38,15 @@ Without these keys the app works fully on one device. To sync your phone and lap
 
 1. Create a project at supabase.com.
 2. In **SQL Editor**, run [supabase/migrations/0001_user_records.sql](supabase/migrations/0001_user_records.sql). It creates one table, with row-level security so each person can only see their own data.
-3. In **Authentication → Email Templates → Magic Link**, make the email show the code by adding `{{ .Token }}` to the body. The app signs in with a 6-digit code instead of a link, because on iPhone a link opens Safari instead of the home-screen app.
-4. In **Project Settings → API**, copy the project URL and the anon public key into `.env.local` (and into Vercel's environment variables):
+3. In **Authentication → Sign In / Providers**, turn off **Confirm email** and save. LiftLog signs in with email and password inside the app. An emailed link would open in Safari instead of the home-screen app, and Supabase's default email can't carry a code without your own SMTP server.
+4. In **Project Settings → API Keys**, copy the project URL and the publishable (anon) key into `.env.local` (and into Vercel's environment variables):
 
    ```
    NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
    ```
 
-5. Restart or redeploy, then sign in under **Settings → Account** on each device.
+5. Restart or redeploy. Create your account under **Settings → Account** on one device, then sign in with the same email and password on the others.
 
 On a new device, sign in on the welcome screen **before** you set it up. If you set it up first, you'll end up with two copies of your split.
 
