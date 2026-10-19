@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ExercisePicker } from "@/components/exercise-picker";
 import { useRestTimer } from "@/components/rest-timer";
+import { SendToObsidian, useObsidianEnabled } from "@/components/send-to-obsidian";
 import { useToast } from "@/components/toast";
 import { type Editing, SetSheet, showKg } from "@/components/set-sheet";
 import { Empty } from "@/components/ui";
@@ -163,6 +164,8 @@ export function WorkoutScreen() {
         </Link>
       </header>
 
+      {!active && <DoneToday workouts={workouts.filter((w) => w.date === today && w.finishedAt)} sets={sets} />}
+
       {!active && days.length > 1 && (
         <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
           {days.map((d) => (
@@ -252,6 +255,26 @@ export function WorkoutScreen() {
         }}
       />
     </div>
+  );
+}
+
+// Today's finished session, with the Obsidian action. Only shown when that
+// setting is on, so the screen stays focused on the next workout otherwise.
+function DoneToday({ workouts, sets }: { workouts: Workout[]; sets: WorkoutSet[] }) {
+  const enabled = useObsidianEnabled();
+  const ids = new Set(workouts.map((w) => w.id));
+  const done = sets.filter((s) => ids.has(s.workoutId));
+  if (!enabled || done.length === 0) return null;
+  const prs = done.filter((s) => s.pr).length;
+  return (
+    <section className="card mb-4 p-4">
+      <p className="font-semibold">Done today</p>
+      <p className="mt-0.5 mb-3 text-sm text-muted">
+        {[...new Set(workouts.filter((w) => done.some((s) => s.workoutId === w.id)).map((w) => w.splitDayName))].join(" + ")} · {done.length} sets
+        {prs > 0 && ` · ${prs} PR${prs > 1 ? "s" : ""}`}
+      </p>
+      <SendToObsidian date={workouts[0].date} />
+    </section>
   );
 }
 

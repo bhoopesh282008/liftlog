@@ -3,6 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { Barcode, BookmarkPlus, ChefHat, ChevronLeft, ChevronRight, Copy, Info, Plus, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { SendToObsidian } from "@/components/send-to-obsidian";
 import { useToast } from "@/components/toast";
 import { addDays, dateKey, formatDay, parseKey } from "@/lib/dates";
 import { builtinFoods } from "@/lib/data/food-sources";
@@ -219,6 +220,7 @@ export function FoodScreen() {
             isToday={date === dateKey()}
             dayNote={dayNote}
           />
+          <SendToObsidian date={date} className="btn btn-ghost -mt-1 mb-3 w-full text-sm" />
           {date === dateKey() && <SupplementReminder date={date} training={training} />}
           {quick.length > 0 && (
             <section className="mb-4" aria-labelledby="quick-add">

@@ -5,6 +5,7 @@ import { ChevronRight, Download, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { RestoreBackupButton } from "@/components/restore-backup";
+import { setObsidianEnabled, useObsidianEnabled } from "@/components/send-to-obsidian";
 import { SignInCard } from "@/components/sign-in";
 import { useToast } from "@/components/toast";
 import { Segmented } from "@/components/ui";
@@ -253,6 +254,10 @@ export function SettingsScreen() {
         </div>
       </Group>
 
+      <Group title="Journal">
+        <ObsidianRow />
+      </Group>
+
       {(meals.length > 0 || customFoods.length > 0) && (
         <Group title="Your foods">
           {meals.map((m) => (
@@ -329,6 +334,16 @@ function Row({ label, detail, children }: { label: string; detail?: string; chil
       </span>
       {children}
     </div>
+  );
+}
+
+// Stored on this device only, since Obsidian may not be installed everywhere.
+function ObsidianRow() {
+  const on = useObsidianEnabled();
+  return (
+    <Row label="Send to Obsidian" detail="Adds the day's training and food to its note in your LiftLog vault">
+      <Switch on={on} onChange={(v) => void setObsidianEnabled(v)} label="Send to Obsidian" />
+    </Row>
   );
 }
 
