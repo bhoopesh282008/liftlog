@@ -18,16 +18,18 @@ import { setsPerMuscle } from "@/lib/progress-logic";
 import { finishWorkout, logSet, remove, save, startWorkout, updateSet } from "@/lib/repo";
 import type { Exercise, PlannedExercise, SplitDay, Workout, WorkoutSet } from "@/lib/types";
 import { formatSets, nextSplitDay, planProgression, previousSessions, type Progression, suggestSet } from "@/lib/workout-logic";
+import { StepsCard } from "./steps-card";
 
 
 export function WorkoutScreen() {
   const data = useLiveQuery(async () => {
-    const [days, workouts, sets, exercises, profile] = await Promise.all([
+    const [days, workouts, sets, exercises, profile, weights] = await Promise.all([
       db.splitDays.toArray(),
       db.workouts.toArray(),
       db.sets.toArray(),
       db.exercises.toArray(),
       db.profile.get(PROFILE_ID),
+      db.weights.toArray(),
     ]);
     return {
       days: alive(days).sort((a, b) => a.order - b.order),
@@ -35,6 +37,7 @@ export function WorkoutScreen() {
       sets: alive(sets),
       exercises: new Map(alive(exercises).map((e) => [e.id, e])),
       restSeconds: profile?.restSeconds ?? 120,
+      latestKg: alive(weights).sort((a, b) => a.date.localeCompare(b.date)).at(-1)?.kg ?? null,
     };
   }, []);
 
@@ -133,6 +136,7 @@ export function WorkoutScreen() {
           }
         />
         {muscleChips}
+        <StepsCard date={today} weightKg={data.latestKg} />
       </div>
     );
   }
@@ -237,6 +241,11 @@ export function WorkoutScreen() {
             )}
           </>
         )}
+      </div>
+
+      {/* Steps sit below the session, so logging sets stays at the top. */}
+      <div className="mt-5">
+        <StepsCard date={today} weightKg={data.latestKg} />
       </div>
 
       <ExercisePicker

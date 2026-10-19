@@ -15,7 +15,6 @@ import { BarcodeScanner } from "./barcode-scanner";
 import { AddFoodSheet, CustomFoodSheet, type FoodTarget, NameSheet } from "./food-sheets";
 import { HabitsCard } from "./habits-card";
 import { MealLog } from "./meal-log";
-import { StepsCard } from "./steps-card";
 import { ProteinCard } from "./protein-card";
 import { ProteinIdeas } from "./protein-ideas";
 import { QuickAdd } from "./quick-add";
@@ -96,7 +95,6 @@ export function FoodScreen() {
       )}
 
       <HabitsCard date={date} training={training} waterGoal={data.latestKg ? waterGoalGlasses(data.latestKg, training) : undefined} />
-      <StepsCard date={date} weightKg={data.latestKg} />
 
       <div className="sticky top-0 z-10 -mx-4 mb-3 bg-bg/90 px-4 py-2 backdrop-blur-lg">
         <div className="flex gap-2">
