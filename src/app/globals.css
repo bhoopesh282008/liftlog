@@ -1,43 +1,68 @@
 @import "tailwindcss";
 
+/* Volt on graphite: see docs/DESIGN.md. In light mode the lime becomes a
+   deep moss so accent text keeps 4.5:1 contrast. */
 :root {
-  --bg: #f5f5f3;
+  --bg: #f3f4f1;
   --surface: #ffffff;
-  --surface-2: #efefec;
-  --text: #17171a;
-  --muted: #6e6e76;
-  --faint: #a3a3aa;
-  --line: rgb(0 0 0 / 0.08);
-  --line-strong: rgb(0 0 0 / 0.14);
-  --accent: #0f9f6e;
-  --accent-soft: rgb(15 159 110 / 0.12);
+  --surface-2: #eceee9;
+  --text: #111311;
+  --muted: #5d6159;
+  --faint: #979b93;
+  --line: rgb(17 19 17 / 0.08);
+  --line-strong: rgb(17 19 17 / 0.14);
+  --accent: #4f7a0a;
+  --accent-soft: rgb(79 122 10 / 0.11);
   --on-accent: #ffffff;
-  --pr: #c2700a;
-  --pr-soft: rgb(217 119 6 / 0.14);
-  --danger: #d63c3c;
-  --track: rgb(0 0 0 / 0.07);
+  --pr: #c2560c;
+  --pr-soft: rgb(194 86 12 / 0.12);
+  --danger: #cc3333;
+  --track: rgb(17 19 17 / 0.07);
+  --card-shadow: 0 1px 2px rgb(17 19 17 / 0.04), 0 10px 28px -14px rgb(17 19 17 / 0.12);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0b0b0c;
-    --surface: #161618;
-    --surface-2: #202023;
-    --text: #f3f3f4;
-    --muted: #a0a0a8;
-    --faint: #6b6b73;
-    --line: rgb(255 255 255 / 0.08);
-    --line-strong: rgb(255 255 255 / 0.16);
-    --accent: #34d399;
-    --accent-soft: rgb(52 211 153 / 0.14);
-    --on-accent: #052e1f;
-    --pr: #fbbf24;
-    --pr-soft: rgb(251 191 36 / 0.14);
-    --danger: #f87171;
-    --track: rgb(255 255 255 / 0.08);
+    --bg: #0a0b0c;
+    --surface: #141517;
+    --surface-2: #1e2023;
+    --text: #f2f3f1;
+    --muted: #9a9ca3;
+    --faint: #64676e;
+    --line: rgb(255 255 255 / 0.07);
+    --line-strong: rgb(255 255 255 / 0.13);
+    --accent: #c5f04a;
+    --accent-soft: rgb(197 240 74 / 0.12);
+    --on-accent: #0f1405;
+    --pr: #ff8a3d;
+    --pr-soft: rgb(255 138 61 / 0.14);
+    --danger: #ff6b6b;
+    --track: rgb(255 255 255 / 0.07);
+    --card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
     color-scheme: dark;
   }
+}
+
+/* Always-dark surfaces (the onboarding welcome) use the dark tokens in
+   either theme, so shared components inside them read correctly. */
+.dark-scope {
+  --bg: #0a0b0c;
+  --surface: #141517;
+  --surface-2: #1e2023;
+  --text: #f2f3f1;
+  --muted: #9a9ca3;
+  --faint: #64676e;
+  --line: rgb(255 255 255 / 0.07);
+  --line-strong: rgb(255 255 255 / 0.13);
+  --accent: #c5f04a;
+  --accent-soft: rgb(197 240 74 / 0.12);
+  --on-accent: #0f1405;
+  --track: rgb(255 255 255 / 0.07);
+  --card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -58,6 +83,7 @@
   --color-track: var(--track);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-barlow-condensed), var(--font-geist-sans), ui-sans-serif, sans-serif;
 }
 
 html {
@@ -108,13 +134,35 @@ p {
 }
 
 @layer components {
+  /* Borderless: cards separate from the page by tone, not outlines. The
+     transparent border keeps tinted variants (border-accent/30) working. */
   .card {
     background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 20px;
+    border: 1px solid transparent;
+    border-radius: 24px;
+    box-shadow: var(--card-shadow);
   }
 
   .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Titles and hero numbers use the condensed athletic face. */
+  .title {
+    font-family: var(--font-display);
+    font-size: 40px;
+    line-height: 0.95;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+  }
+
+  .display {
+    font-family: var(--font-display);
+    font-size: 72px;
+    line-height: 0.85;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
   }
 
@@ -124,16 +172,17 @@ p {
     justify-content: center;
     gap: 6px;
     min-height: 44px;
-    padding: 0 16px;
-    border-radius: 14px;
-    font-weight: 500;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-weight: 550;
     font-size: 15px;
     background: var(--surface-2);
     color: var(--text);
     transition-property: transform, background-color, opacity;
-    transition-duration: 150ms;
-    transition-timing-function: ease-out;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out);
     user-select: none;
+    touch-action: manipulation;
   }
   .btn:active {
     transform: scale(0.96);
@@ -162,6 +211,7 @@ p {
   .btn-primary {
     background: var(--accent);
     color: var(--on-accent);
+    font-weight: 650;
   }
   .btn-ghost {
     background: transparent;
@@ -177,7 +227,7 @@ p {
     width: 100%;
     min-height: 44px;
     padding: 0 14px;
-    border-radius: 14px;
+    border-radius: 16px;
     background: var(--surface-2);
     border: 1px solid transparent;
     color: var(--text);
@@ -203,12 +253,24 @@ p {
     border-radius: 999px;
     background: var(--surface-2);
     font-size: 14px;
+    font-weight: 500;
     white-space: nowrap;
-    transition-property: transform, background-color;
-    transition-duration: 150ms;
+    transition-property: transform, background-color, color;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out);
+    touch-action: manipulation;
   }
   .chip:active {
     transform: scale(0.96);
+  }
+  /* 36px to look at, 44px to tap. */
+  .chip {
+    position: relative;
+  }
+  .chip::after {
+    content: "";
+    position: absolute;
+    inset: -4px -2px;
   }
   .chip[data-on="true"] {
     background: var(--accent-soft);
@@ -240,6 +302,7 @@ p {
 
   .label {
     font-size: 13px;
+    font-weight: 500;
     color: var(--muted);
   }
 }
@@ -283,12 +346,110 @@ p {
   animation: pop 320ms ease-out both;
 }
 
+/* Page enter: the tab rises in and its sections follow 40ms apart, so you
+   can see where the content came from. */
+.animate-page > * > * {
+  animation: enter 360ms var(--ease-out) both;
+}
+.animate-page > * > *:nth-child(2) { animation-delay: 40ms; }
+.animate-page > * > *:nth-child(3) { animation-delay: 80ms; }
+.animate-page > * > *:nth-child(4) { animation-delay: 120ms; }
+.animate-page > * > *:nth-child(5) { animation-delay: 160ms; }
+.animate-page > * > *:nth-child(n + 6) { animation-delay: 200ms; }
+
+/* Progress fills grow from zero when they appear. */
+@keyframes grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+.animate-grow {
+  transform-origin: left;
+  animation: grow 700ms var(--ease-out) both;
+}
+
+/* Launch splash: the bar slides in from the centre, the plates slam on from
+   the sides, the wordmark rises, then the screen lifts away like a rep. */
+@keyframes splash-bar {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes splash-plate-l {
+  0% {
+    transform: translateX(-56px) scaleY(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: translateX(3px) scaleY(1.04);
+    opacity: 1;
+  }
+}
+@keyframes splash-plate-r {
+  0% {
+    transform: translateX(56px) scaleY(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: translateX(-3px) scaleY(1.04);
+    opacity: 1;
+  }
+}
+@keyframes splash-thud {
+  40% {
+    transform: translateY(5px) scale(0.97);
+  }
+}
+@keyframes splash-rise {
+  from {
+    transform: translateY(105%);
+  }
+}
+@keyframes splash-wash {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+.splash-bar {
+  animation: splash-bar 420ms var(--ease-out) 80ms both;
+}
+.splash-plate-l {
+  animation: splash-plate-l 460ms var(--ease-spring) var(--d) both;
+}
+.splash-plate-r {
+  animation: splash-plate-r 460ms var(--ease-spring) var(--d) both;
+}
+.splash-mark {
+  animation: splash-thud 260ms ease-out 640ms both;
+}
+.splash-letter {
+  display: inline-block;
+  animation: splash-rise 520ms var(--ease-out) var(--d) both;
+}
+.splash-wash {
+  animation: splash-wash 900ms var(--ease-out) 300ms both;
+}
+.splash-leave {
+  transform: translateY(-100%);
+  transition: transform 560ms cubic-bezier(0.7, 0, 0.2, 1);
+}
+.splash-leave .splash-lockup {
+  transform: translateY(-40px);
+  opacity: 0;
+  transition:
+    transform 420ms cubic-bezier(0.5, 0, 0.2, 1),
+    opacity 300ms ease-in;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
     transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
   }
 }
 
@@ -300,8 +461,19 @@ p {
 }
 
 .pb-nav {
-  padding-bottom: calc(88px + var(--dock, 0px) + env(safe-area-inset-bottom));
+  padding-bottom: calc(104px + var(--dock, 0px) + env(safe-area-inset-bottom));
 }
 .pt-safe {
   padding-top: env(safe-area-inset-top);
+}
+
+/* The protein ring draws from empty. stroke-dashoffset is paint-only on a
+   92px SVG, cheap enough to animate. */
+@keyframes ring {
+  from {
+    stroke-dashoffset: 100;
+  }
+}
+.animate-ring {
+  animation: ring 900ms var(--ease-out) 120ms both;
 }

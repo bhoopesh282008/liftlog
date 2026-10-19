@@ -2,13 +2,17 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChartLine, Dumbbell, Settings, Share, Timer, Utensils, X } from "lucide-react";
+import { MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { db, PROFILE_ID } from "@/lib/db";
 import { CHANGE_EVENT, closeStaleWorkouts, runAutoAdjust } from "@/lib/repo";
 import { supabase, syncNow } from "@/lib/sync";
 import { mmss, RestTimerProvider, useRestTimer } from "./rest-timer";
+import { SmoothScroll } from "./smooth-scroll";
+import { SlidingNumber } from "./motion-primitives/sliding-number";
+import { Splash } from "./splash";
 import { ToastProvider } from "./toast";
 
 const TABS = [
@@ -22,19 +26,30 @@ const noopSubscribe = () => () => {};
 
 // All data lives in IndexedDB on the device, so the app renders on the
 // client only. The server sends an empty shell that the service worker caches.
+// The splash is in that shell too, so it shows before any script runs.
 export function AppShell({ children }: { children: ReactNode }) {
   const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
-  if (!hydrated) return <div className="min-h-dvh" />;
+  const [ready, setReady] = useState(false);
+  const markReady = useCallback(() => setReady(true), []);
+  // Motion honours the system's reduced-motion setting app-wide.
   return (
-    <ToastProvider>
-      <RestTimerProvider>
-        <Gate>{children}</Gate>
-      </RestTimerProvider>
-    </ToastProvider>
+    <MotionConfig reducedMotion="user">
+      {hydrated && <SmoothScroll />}
+      {hydrated ? (
+        <ToastProvider>
+          <RestTimerProvider>
+            <Gate onReady={markReady}>{children}</Gate>
+          </RestTimerProvider>
+        </ToastProvider>
+      ) : (
+        <div className="min-h-dvh" />
+      )}
+      <Splash ready={ready} />
+    </MotionConfig>
   );
 }
 
-function Gate({ children }: { children: ReactNode }) {
+function Gate({ children, onReady }: { children: ReactNode; onReady: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   // undefined while loading, null when there is no profile yet.
@@ -50,39 +65,50 @@ function Gate({ children }: { children: ReactNode }) {
 
   useBackgroundJobs(Boolean(profile?.onboarded));
 
-  if (profile === undefined || (needsOnboarding && !onboarding) || (!needsOnboarding && pathname === "/")) {
-    return <div className="min-h-dvh" />;
-  }
+  const waiting = profile === undefined || (needsOnboarding && !onboarding) || (!needsOnboarding && pathname === "/");
+  useEffect(() => {
+    if (!waiting) onReady();
+  }, [waiting, onReady]);
+
+  if (waiting) return <div className="min-h-dvh" />;
   if (onboarding) return <main className="pt-safe mx-auto min-h-dvh w-full max-w-lg">{children}</main>;
 
   return (
     <>
       <main className="pt-safe pb-nav mx-auto min-h-dvh w-full max-w-2xl">
         <InstallHint />
-        {children}
+        {/* Keyed by route so each tab plays its enter animation. */}
+        <div key={pathname} className="animate-page">
+          {children}
+        </div>
       </main>
+      {/* A floating dock: the page scrolls under it, and the rest timer
+          docks on top like a mini player. */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/85 backdrop-blur-xl"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 10px)" }}
       >
-        <RestDock linkToWorkout={!pathname.startsWith("/workout")} />
-        <div className="mx-auto flex max-w-2xl">
-          {TABS.map(({ href, label, icon: Icon }) => {
-            const active = pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex min-h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors duration-150 ${
-                  active ? "text-accent" : "text-faint"
-                }`}
-                aria-current={active ? "page" : undefined}
-              >
-                <Icon size={22} strokeWidth={active ? 2.3 : 1.8} />
-                {label}
-              </Link>
-            );
-          })}
+        <div className="pointer-events-auto mx-auto max-w-md">
+          <RestDock linkToWorkout={!pathname.startsWith("/workout")} />
+          <div className="flex rounded-full border border-line bg-surface/80 p-1.5 shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] backdrop-blur-xl">
+            {TABS.map(({ href, label, icon: Icon }) => {
+              const active = pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-semibold transition-colors duration-200 ${
+                    active ? "text-accent" : "text-faint hover:text-muted"
+                  }`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {active && <motion.span layoutId="tab-pill" aria-hidden className="absolute inset-0 rounded-full bg-accent-soft" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+                  <Icon size={21} strokeWidth={active ? 2.4 : 1.9} className="relative" aria-hidden />
+                  <span className="relative">{label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </nav>
     </>
@@ -143,13 +169,22 @@ function RestDock({ linkToWorkout }: { linkToWorkout: boolean }) {
   const time = (
     <span className="flex items-baseline gap-2">
       <Timer size={16} className="self-center text-muted" aria-hidden />
-      <span className={`num text-[22px] font-semibold tracking-tight ${t.endAt ? "" : "text-accent"}`}>{t.endAt ? mmss(t.remaining) : "Go"}</span>
+      <span className={`num flex font-display text-[28px] leading-none font-bold ${t.endAt ? "" : "text-accent uppercase"}`} aria-label={t.endAt ? mmss(t.remaining) : "Go"}>
+        {t.endAt ? (
+          <>
+            <SlidingNumber value={Math.floor(t.remaining / 60)} />:
+            <SlidingNumber value={t.remaining % 60} padStart />
+          </>
+        ) : (
+          "Go"
+        )}
+      </span>
       <span className="text-xs text-muted">{t.endAt ? "rest" : "rest done"}</span>
     </span>
   );
   return (
-    <div className="animate-enter mx-auto max-w-2xl px-3 pt-2" role="timer" aria-label="Rest timer">
-      <div className="relative flex h-14 items-center justify-between overflow-hidden rounded-2xl bg-surface-2 pr-1.5 pl-4">
+    <div className="animate-enter mb-2" role="timer" aria-label="Rest timer">
+      <div className="relative flex h-14 items-center justify-between overflow-hidden rounded-full border border-line bg-surface pr-1.5 pl-5 shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)]">
         <span
           aria-hidden
           className="absolute inset-y-0 left-0 w-full origin-left bg-accent-soft transition-transform duration-300 ease-linear"

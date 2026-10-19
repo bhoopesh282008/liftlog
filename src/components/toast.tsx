@@ -23,20 +23,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={show}>
       {children}
+      {/* Always graphite, in both themes, so the lime action keeps its contrast. */}
       <div
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4"
-        style={{ bottom: "calc(80px + var(--dock, 0px) + env(safe-area-inset-bottom))" }}
+        style={{ bottom: "calc(96px + var(--dock, 0px) + env(safe-area-inset-bottom))" }}
       >
         {toast && (
           <div
             key={toast.id}
-            className="animate-enter pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl bg-text py-2 pr-2 pl-4 text-sm text-bg shadow-lg"
+            className="animate-enter pointer-events-auto flex max-w-md items-center gap-3 rounded-full border border-white/10 bg-[#1e2023] py-1.5 pr-1.5 pl-5 text-sm font-medium text-[#f2f3f1] shadow-[0_16px_40px_-12px_rgb(0_0_0/0.5)]"
           >
             <span className="py-1.5">{toast.message}</span>
             {toast.action && (
               <button
-                className="min-h-9 rounded-xl px-3 font-semibold text-accent"
+                className="min-h-10 rounded-full px-4 font-semibold text-[#c5f04a] transition-colors hover:bg-white/10"
                 onClick={() => {
                   toast.action!.run();
                   setToast(null);

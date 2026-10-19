@@ -176,7 +176,7 @@ export function FoodScreen() {
         <button className="btn btn-ghost btn-icon -ml-2" onClick={() => setDate(addDays(date, -1))} aria-label="Previous day">
           <ChevronLeft size={22} />
         </button>
-        <h1 className="text-lg font-semibold">{formatDay(date)}</h1>
+        <h1 className="font-display text-[28px] leading-none font-bold uppercase">{formatDay(date)}</h1>
         <button
           className="btn btn-ghost btn-icon -mr-2"
           onClick={() => setDate(addDays(date, 1))}

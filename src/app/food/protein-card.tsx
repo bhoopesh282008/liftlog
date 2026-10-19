@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Flame } from "lucide-react";
+import { CountUp } from "@/components/count-up";
 import { Bar } from "@/components/ui";
 import { MODE_LABELS } from "@/lib/targets";
 import type { GoalMode, Macros, Target } from "@/lib/types";
@@ -36,36 +37,34 @@ export function ProteinCard({
   const kcalLeft = target.calories - eaten.kcal;
 
   return (
-    <section className="card mb-4 p-4" aria-label="Protein and calories">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted">Protein</p>
+    <section className="card mb-4 p-5" aria-label="Protein and calories">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-sm font-medium text-muted">
+            Protein
+            {streak > 0 && (
+              <span className="num inline-flex items-center gap-1 rounded-full bg-pr-soft px-2 py-0.5 text-xs font-semibold text-pr">
+                <Flame size={13} aria-hidden /> {streak}-day streak
+              </span>
+            )}
+          </p>
           {met ? (
-            <p className="mt-1 flex items-center gap-2 text-[28px] leading-none font-semibold tracking-[-0.02em] text-accent">
-              <Check size={26} strokeWidth={2.6} /> Goal hit
+            <p className="mt-2 flex items-center gap-2 text-[34px] leading-none font-bold tracking-[-0.04em] text-accent">
+              <Check size={30} strokeWidth={2.8} aria-hidden /> Goal hit
             </p>
           ) : (
-            <p className="num mt-1 leading-none">
-              <span className="text-[40px] font-semibold tracking-[-0.03em]">{left}</span>
-              <span className="ml-1.5 text-muted">g to go</span>
+            <p className="mt-2 leading-none">
+              <CountUp value={left} className="display" />
+              <span className="ml-1.5 text-[17px] font-medium text-muted">g to go</span>
             </p>
           )}
-        </div>
-        <div className="pt-0.5 text-right">
-          {streak > 0 && (
-            <p className="flex items-center justify-end gap-1 text-sm font-medium text-pr">
-              <Flame size={16} /> {streak}-day streak
-            </p>
-          )}
-          <p className="num mt-1 text-sm text-muted">
-            {r(eaten.protein)} of {target.protein} g
+          <p className="num mt-2.5 text-sm text-muted">
+            <b className="font-semibold text-text">{r(eaten.protein)}</b> of {target.protein} g eaten
           </p>
         </div>
+        <Ring value={eaten.protein} max={target.protein} />
       </div>
-      <div className="mt-3">
-        <Bar value={eaten.protein} max={target.protein} thick />
-      </div>
-      <details className="group mt-2 text-sm">
+      <details className="group mt-3 text-sm">
         <summary className="flex min-h-9 cursor-pointer list-none items-center text-muted [&::-webkit-details-marker]:hidden">
           How is {target.protein} g worked out?
         </summary>
@@ -82,7 +81,7 @@ export function ProteinCard({
         </p>
       </details>
 
-      <div className="mt-3 grid grid-cols-3 gap-3 border-t border-line pt-3">
+      <div className="mt-3 grid grid-cols-3 gap-2">
         <Macro label="Calories" value={eaten.kcal} goal={target.calories} unit="" note={kcalLeft >= 0 ? `${r(kcalLeft).toLocaleString()} left` : `${r(-kcalLeft).toLocaleString()} over`} />
         <Macro label="Carbs" value={eaten.carbs} goal={target.carbs} unit=" g" />
         <Macro label="Fat" value={eaten.fat} goal={target.fat} unit=" g" />
@@ -101,19 +100,45 @@ export function ProteinCard({
   );
 }
 
+// The day's protein as a ring that fills from empty when the card appears.
+function Ring({ value, max }: { value: number; max: number }) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  const over = max > 0 && value > max * 1.1;
+  return (
+    <div className="relative size-[92px] shrink-0">
+      <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden>
+        <circle cx="50" cy="50" r="42" fill="none" stroke="var(--track)" strokeWidth="11" />
+        <circle
+          cx="50"
+          cy="50"
+          r="42"
+          fill="none"
+          stroke={over ? "var(--pr)" : "var(--accent)"}
+          strokeWidth="11"
+          strokeLinecap="round"
+          pathLength={100}
+          strokeDasharray="100"
+          strokeDashoffset={100 - pct}
+          className="animate-ring transition-[stroke-dashoffset] duration-700 ease-out"
+        />
+      </svg>
+      <CountUp value={pct} format={(n) => `${Math.round(n)}%`} className="absolute inset-0 flex items-center justify-center text-[17px] font-bold tracking-[-0.02em]" />
+    </div>
+  );
+}
+
 function Macro({ label, value, goal, unit, note }: { label: string; value: number; goal: number; unit: string; note?: string }) {
   return (
-    <div>
-      <p className="text-xs text-muted">{label}</p>
-      <p className="num mt-0.5 text-sm">
-        <b className="font-semibold">{r(value).toLocaleString()}</b>
-        <span className="text-muted">
-          {" "}
-          / {goal.toLocaleString()}
-          {unit}
-        </span>
+    <div className="rounded-2xl bg-surface-2 p-3">
+      <p className="text-xs font-medium text-muted">{label}</p>
+      <p className="mt-1 text-[19px] leading-tight font-bold tracking-[-0.02em]">
+        <CountUp value={value} />
       </p>
-      <div className="mt-1.5">
+      <p className="num text-xs whitespace-nowrap text-muted">
+        of {goal.toLocaleString()}
+        {unit || " kcal"}
+      </p>
+      <div className="mt-2">
         <Bar value={value} max={goal} tone="muted" />
       </div>
       {note && <p className="num mt-1 text-[11px] text-faint">{note}</p>}

@@ -147,7 +147,7 @@ export function ProgressScreen() {
   return (
     <div className="space-y-4 px-4 pt-5">
       <header>
-        <h1 className="text-[30px] leading-tight font-semibold tracking-[-0.02em]">Progress</h1>
+        <h1 className="title">Progress</h1>
         <p className="mt-0.5 text-sm text-muted">Your last {WEEKS} weeks: strength, body weight, and food</p>
       </header>
 
@@ -168,7 +168,7 @@ export function ProgressScreen() {
                   </button>
                 ))}
               </div>
-              <LineChart points={history} color="var(--pr)" />
+              <LineChart points={history} />
               <p className="num mt-2 text-sm text-muted">
                 {firstBest && lastBest
                   ? `Best set ${formatKg(firstBest.weightKg)} × ${firstBest.reps} → ${formatKg(lastBest.weightKg)} × ${lastBest.reps} · est. 1-rep max ${history.at(-1)?.value ?? 0} kg`

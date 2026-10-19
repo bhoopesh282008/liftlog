@@ -42,7 +42,7 @@ export function SplitEditor() {
           Use a template
         </button>
       </div>
-      <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Your split</h1>
+      <h1 className="title">Your split</h1>
       <p className="mt-1 mb-5 text-sm text-muted">Days run in this order, then repeat. A missed day never gets skipped.</p>
 
       <div className="space-y-3">

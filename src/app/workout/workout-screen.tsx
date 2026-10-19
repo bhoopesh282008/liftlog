@@ -3,13 +3,16 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { Check, ChevronDown, Dumbbell, History, Plus, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import ClickSpark from "@/components/react-bits/ClickSpark";
+import ShinyText from "@/components/react-bits/ShinyText";
 import { ExercisePicker } from "@/components/exercise-picker";
 import { useRestTimer } from "@/components/rest-timer";
 import { SendToObsidian, useObsidianEnabled } from "@/components/send-to-obsidian";
 import { useToast } from "@/components/toast";
 import { type Editing, SetSheet, showKg } from "@/components/set-sheet";
 import { Empty } from "@/components/ui";
+import { useTokenColor } from "@/lib/use-token";
 import { MUSCLE_DAYS, muscleDay } from "@/lib/data/muscle-routines";
 import { addDays, dateKey } from "@/lib/dates";
 import { alive, db, PROFILE_ID } from "@/lib/db";
@@ -145,7 +148,7 @@ export function WorkoutScreen() {
     <div className="px-4 pt-5">
       <header className="mb-5 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-[30px] leading-tight font-semibold tracking-[-0.02em]">{day?.name ?? active?.splitDayName ?? "Workout"}</h1>
+          <h1 className="title">{day?.name ?? active?.splitDayName ?? "Workout"}</h1>
           <p className="mt-0.5 text-sm text-muted">
             {active ? (
               <Elapsed since={active.startedAt} />
@@ -327,7 +330,7 @@ function ExerciseCard({
         disabled={current}
       >
         <span className="min-w-0">
-          <span className={`block font-semibold ${complete && !expanded ? "text-muted" : ""}`}>{exercise.name}</span>
+          <span className={`block text-[17px] font-semibold tracking-[-0.015em] ${complete && !expanded ? "text-muted" : ""}`}>{exercise.name}</span>
           <span className="mt-0.5 block text-sm text-muted">
             {complete && !expanded ? (
               <span className="num">{formatSets(done).replace(/^0 kg/, "BW")}</span>
@@ -340,8 +343,22 @@ function ExerciseCard({
             )}
           </span>
         </span>
-        <span className={`num flex shrink-0 items-center gap-1 text-xs ${complete ? "text-accent" : "text-faint"}`}>
-          {complete ? <Check size={18} /> : `${plan.sets} × ${range}`}
+        <span className={`num flex shrink-0 items-center gap-2 text-xs ${complete ? "text-accent" : "text-faint"}`}>
+          {complete ? (
+            <Check size={18} aria-label="Done" />
+          ) : (
+            <span className="flex flex-col items-end gap-1.5">
+              {/* One pip per planned set, filled as you log them. */}
+              <span className="flex gap-1" aria-label={`${done.length} of ${plan.sets} sets done`}>
+                {Array.from({ length: plan.sets }, (_, i) => (
+                  <span key={i} className={`h-1 w-3.5 rounded-full transition-colors duration-300 ${i < done.length ? "bg-accent" : "bg-line-strong"}`} />
+                ))}
+              </span>
+              <span>
+                {plan.sets} × {range}
+              </span>
+            </span>
+          )}
           {!current && <ChevronDown size={16} className={`text-faint transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />}
         </span>
       </button>
@@ -350,7 +367,7 @@ function ExerciseCard({
           {progression && !complete && <ProgressionNote p={progression} />}
           <ul className="mt-2 divide-y divide-line">
             {done.map((s, i) => (
-              <li key={s.id}>
+              <li key={s.id} className="animate-enter">
                 <button
                   className="flex min-h-12 w-full items-center justify-between text-left"
                   onClick={() => onEdit({ exerciseId: s.exerciseId, set: s, weightKg: s.weightKg, reps: s.reps })}
@@ -361,7 +378,7 @@ function ExerciseCard({
                   </span>
                   {s.pr ? (
                     <span className="animate-pop flex items-center gap-1 rounded-full bg-pr-soft px-2.5 py-1 text-xs font-semibold text-pr">
-                      <Trophy size={13} /> New PR
+                      <Trophy size={13} aria-hidden /> <PrLabel />
                     </span>
                   ) : (
                     <Check size={18} className="text-accent" />
@@ -382,7 +399,7 @@ function ExerciseCard({
                   >
                     <span className="mr-3 inline-block w-10 text-faint">Set {idx + 1}</span>
                     {s && (last.length || done.length) ? (
-                      <span className="border-b border-dashed border-line-strong">
+                      <span className={`border-b border-dashed border-line-strong ${first ? "text-[19px] font-semibold tracking-[-0.02em]" : ""}`}>
                         {showKg(s.weightKg)} × {s.reps}
                       </span>
                     ) : s ? (
@@ -392,14 +409,16 @@ function ExerciseCard({
                     )}
                   </button>
                   {first && (
+                    <LogSpark>
                     <button
-                      className="btn btn-primary min-h-10 px-5 text-sm"
+                      className="btn btn-primary min-h-11 px-6"
                       onClick={() =>
                         s && (last.length || done.length) ? onLog(s.weightKg, s.reps) : onEdit({ exerciseId: exercise.id, weightKg: s?.weightKg ?? 0, reps: s?.reps ?? plan.repMin })
                       }
                     >
                       Log
                     </button>
+                    </LogSpark>
                   )}
                 </li>
               );
@@ -435,4 +454,21 @@ function ProgressionNote({ p }: { p: Progression }) {
       </span>
     </p>
   );
+}
+
+// Logging a set bursts volt sparks off the button (React Bits ClickSpark):
+// the one tap that matters most gets the most satisfying feedback.
+function LogSpark({ children }: { children: ReactNode }) {
+  const accent = useTokenColor("--accent", "#c5f04a");
+  return (
+    <ClickSpark sparkColor={accent} sparkCount={10} sparkRadius={34} sparkSize={9} duration={480} className="h-auto! w-auto!">
+      {children}
+    </ClickSpark>
+  );
+}
+
+// A sheen sweeps across the badge once when a PR lands (React Bits ShinyText).
+function PrLabel() {
+  const pr = useTokenColor("--pr", "#ff8a3d");
+  return <ShinyText text="New PR" color={pr} shineColor="#ffffff" trigger="view" speed={1.4} />;
 }

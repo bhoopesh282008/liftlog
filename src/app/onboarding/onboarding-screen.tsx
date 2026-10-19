@@ -2,9 +2,11 @@
 
 import { ArrowLeft, Dumbbell } from "lucide-react";
 import { useState } from "react";
+import SplitText from "@/components/react-bits/SplitText";
 import { RestoreBackupButton } from "@/components/restore-backup";
 import { SignInCard } from "@/components/sign-in";
 import { Segmented } from "@/components/ui";
+import { VantaFog } from "@/components/vanta-fog";
 import { SPLIT_TEMPLATES, type SplitTemplateId } from "@/lib/data/split-templates";
 import { completeOnboarding } from "@/lib/repo";
 import { syncConfigured } from "@/lib/sync";
@@ -31,22 +33,25 @@ export function OnboardingScreen() {
 
   const next = () => setStep((s) => s + 1);
 
+  // The welcome is always dark, continuing straight on from the splash.
   if (step === 0) {
     return (
-      <div className="flex min-h-dvh flex-col px-6 pt-16 pb-10">
-        <div className="mb-8 flex size-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
-          <Dumbbell size={28} />
+      <div className="dark-scope relative isolate flex min-h-dvh flex-col overflow-hidden bg-[#0a0b0c] px-6 pt-16 pb-10 text-[#f2f3f1]">
+        <VantaFog className="absolute inset-0 -z-10" />
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-2/3 bg-gradient-to-t from-[#0a0b0c] via-[#0a0b0c]/85 to-transparent" />
+        <div className="animate-enter mb-10 flex size-14 items-center justify-center rounded-2xl bg-[#c5f04a]/15 text-[#c5f04a]">
+          <Dumbbell size={28} aria-hidden />
         </div>
-        <h1 className="text-[34px] leading-tight font-semibold tracking-tight">Build muscle. Stay lean.</h1>
-        <p className="mt-3 text-lg text-muted">
+        <Headline text="Build muscle. Stay lean." />
+        <p className="animate-enter mt-4 max-w-sm text-lg text-[#b9bcb4]" style={{ animationDelay: "450ms" }}>
           Log sets in two taps, track protein without the guesswork, and see if it&apos;s working.
         </p>
-        <div className="mt-auto space-y-3 pt-10">
-          <button className="btn btn-primary w-full" onClick={next}>
+        <div className="animate-enter mt-auto space-y-3 pt-10" style={{ animationDelay: "600ms" }}>
+          <button className="btn w-full bg-[#c5f04a] font-semibold text-[#0f1405] hover:bg-[#d4f56f]" onClick={next}>
             Get started
           </button>
           {syncConfigured && <SignInCard compact title="Already use LiftLog on another device?" />}
-          <RestoreBackupButton className="btn btn-ghost w-full" />
+          <RestoreBackupButton className="btn btn-ghost w-full text-[#b9bcb4]" />
         </div>
       </div>
     );
@@ -165,7 +170,7 @@ export function OnboardingScreen() {
 function Title({ title, body }: { title: string; body: string }) {
   return (
     <div className="mb-6">
-      <h1 className="text-[28px] leading-tight font-semibold tracking-tight">{title}</h1>
+      <h1 className="title">{title}</h1>
       <p className="mt-2 text-muted">{body}</p>
     </div>
   );
@@ -226,4 +231,13 @@ function Options<T extends string>({
       })}
     </div>
   );
+}
+
+// The headline rises in letter by letter (React Bits SplitText, on GSAP).
+// Plain text under reduced motion.
+function Headline({ text }: { text: string }) {
+  const [reduce] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const className = "font-display text-[64px] leading-[0.88] font-bold uppercase";
+  if (reduce) return <h1 className={className}>{text}</h1>;
+  return <SplitText tag="h1" text={text} className={className} textAlign="left" splitType="chars" effect="rise" mask delay={22} duration={0.7} trigger="load" />;
 }

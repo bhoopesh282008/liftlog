@@ -74,7 +74,7 @@ export function SettingsScreen() {
 
   return (
     <div className="space-y-5 px-4 pt-5">
-      <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Settings</h1>
+      <h1 className="title">Settings</h1>
 
       <Group title="Training">
         <Link href="/settings/split" className="press flex min-h-14 items-center justify-between px-4">

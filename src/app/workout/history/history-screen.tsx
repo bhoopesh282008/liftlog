@@ -65,7 +65,7 @@ export function HistoryScreen() {
           <CalendarPlus size={18} /> Log past workout
         </button>
       </div>
-      <h1 className="mb-4 text-[28px] leading-tight font-semibold tracking-tight">History</h1>
+      <h1 className="title mb-4">History</h1>
 
       {data.workouts.length === 0 ? (
         <Empty
@@ -148,7 +148,7 @@ function WorkoutDetail({ workout, sets, names, onBack }: { workout: Workout; set
           <Trash2 size={16} /> Delete
         </button>
       </div>
-      <h1 className="text-[28px] leading-tight font-semibold tracking-tight">{workout.splitDayName}</h1>
+      <h1 className="title">{workout.splitDayName}</h1>
       <label className="mt-2 mb-5 flex items-center gap-2 text-sm text-muted">
         Date
         <input

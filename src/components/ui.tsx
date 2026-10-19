@@ -2,6 +2,7 @@
 
 import { Minus, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { pauseSmoothScroll, resumeSmoothScroll } from "./smooth-scroll";
 
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: string; children: ReactNode }) {
   // Drag the grabber or title down to dismiss, as on iPhone.
@@ -22,9 +23,11 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    pauseSmoothScroll();
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      resumeSmoothScroll();
     };
   }, [open, onClose]);
 
@@ -59,7 +62,9 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
             <X size={20} />
           </button>
         </div>
-        <div className="overflow-y-auto px-5 pb-5">{children}</div>
+        <div className="overflow-y-auto overscroll-contain px-5 pb-5" data-lenis-prevent>
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -71,7 +76,7 @@ export function Bar({ value, max, tone = "accent", thick = false }: { value: num
   return (
     <div className={`${thick ? "h-3" : "h-2"} overflow-hidden rounded-full bg-track`}>
       <div
-        className="h-full rounded-full transition-[width] duration-500 ease-out"
+        className="animate-grow h-full rounded-full transition-[width] duration-500 ease-out"
         style={{
           width: `${pct}%`,
           background: over ? "var(--pr)" : tone === "accent" ? "var(--accent)" : "var(--faint)",
@@ -98,7 +103,7 @@ export function Stepper({
 }) {
   const set = (v: number) => onChange(Math.max(min, Math.round(v * 100) / 100));
   return (
-    <div className="flex items-center gap-1 rounded-2xl bg-surface-2 p-1">
+    <div className="flex items-center gap-1 rounded-full bg-surface-2 p-1">
       <button className="btn btn-icon bg-surface" onClick={() => set(value - step)} aria-label={`Less ${label}`}>
         <Minus size={18} />
       </button>
@@ -175,7 +180,7 @@ export function LineChart({
 export function Empty({ icon, title, body, action }: { icon: ReactNode; title: string; body: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center px-6 py-10 text-center">
-      <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-surface-2 text-muted">{icon}</div>
+      <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">{icon}</div>
       <h3 className="font-semibold">{title}</h3>
       <p className="mt-1 max-w-xs text-sm text-muted">{body}</p>
       {action && <div className="mt-4">{action}</div>}
@@ -185,15 +190,15 @@ export function Empty({ icon, title, body, action }: { icon: ReactNode; title: s
 
 export function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
   return (
-    <div className="flex gap-1 rounded-2xl bg-surface-2 p-1" role="radiogroup">
+    <div className="flex gap-1 rounded-full bg-surface-2 p-1" role="radiogroup">
       {options.map((o) => (
         <button
           key={o.value}
           role="radio"
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
-          className={`min-h-10 flex-1 rounded-xl px-2 text-sm font-medium transition-[background-color,color] duration-150 ${
-            value === o.value ? "bg-surface text-text shadow-[0_1px_2px_rgb(0_0_0/0.08)]" : "text-muted"
+          className={`min-h-10 flex-1 rounded-full px-2 text-sm font-medium transition-[background-color,color,transform] duration-200 active:scale-[0.96] ${
+            value === o.value ? "bg-text font-semibold text-bg" : "text-muted"
           }`}
         >
           {o.label}
