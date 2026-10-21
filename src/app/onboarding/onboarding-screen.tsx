@@ -85,7 +85,7 @@ export function OnboardingScreen() {
           <>
             <Title title="About you" body="Used to work out your calorie and protein targets. Stays on your device." />
             <div className="space-y-4">
-              <Segmented value={sex} onChange={setSex} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} />
+              <Segmented value={sex} onChange={setSex} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} ariaLabel="Sex" />
               <NumField label="Age" unit="years" value={age} onChange={setAge} />
               <NumField label="Height" unit="cm" value={height} onChange={setHeight} />
               <NumField label="Weight" unit="kg" value={weight} onChange={setWeight} />
@@ -101,6 +101,7 @@ export function OnboardingScreen() {
               value={activity}
               onChange={setActivity}
               options={(Object.keys(ACTIVITY_LABELS) as Activity[]).map((a) => ({ value: a, label: ACTIVITY_LABELS[a] }))}
+              ariaLabel="Activity level"
             />
             <Footer onNext={next} />
           </>
@@ -120,6 +121,7 @@ export function OnboardingScreen() {
                   detail: `${MODE_LABELS[m].detail}. ${formatAdjust(m)} calories${kg ? `, about ${kg > 0 ? "+" : "−"}${Math.abs(kg).toFixed(2)} kg a week` : ""}`,
                 };
               })}
+              ariaLabel="Goal"
             />
             <Footer onNext={next} />
           </>
@@ -161,6 +163,7 @@ export function OnboardingScreen() {
               value={template}
               onChange={setTemplate}
               options={SPLIT_TEMPLATES.map((t) => ({ value: t.id, label: t.name, detail: t.blurb }))}
+              ariaLabel="Split"
             />
             <Footer
               label="Start training"
@@ -212,20 +215,23 @@ function Options<T extends string>({
   value,
   onChange,
   options,
+  ariaLabel,
 }: {
   value: T;
   onChange: (v: T) => void;
   options: { value: T; label: string; detail?: string }[];
+  ariaLabel: string;
 }) {
+  // Plain toggle buttons, not role="radio": see the note on Segmented in
+  // components/ui.tsx.
   return (
-    <div className="space-y-2" role="radiogroup">
+    <div className="space-y-2" role="group" aria-label={ariaLabel}>
       {options.map((o) => {
         const on = o.value === value;
         return (
           <button
             key={o.value}
-            role="radio"
-            aria-checked={on}
+            aria-pressed={on}
             onClick={() => onChange(o.value)}
             className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-[border-color,background-color] duration-150 ${
               on ? "border-accent bg-accent-soft" : "border-line bg-surface"

@@ -187,17 +187,29 @@ export function Empty({ icon, title, body, action }: { icon: ReactNode; title: s
   );
 }
 
-export function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+export function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+  ariaLabel: string;
+}) {
+  // Plain toggle buttons, not role="radio": that role promises arrow-key
+  // navigation between options, which this doesn't implement, so it would
+  // announce a keyboard pattern that doesn't work.
   return (
-    <div className="flex gap-1 rounded-full bg-surface-2 p-1" role="radiogroup">
+    <div className="flex gap-1 rounded-full bg-surface-2 p-1" role="group" aria-label={ariaLabel}>
       {options.map((o) => (
         <button
           key={o.value}
-          role="radio"
-          aria-checked={value === o.value}
+          aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={`min-h-10 flex-1 rounded-full px-2 text-sm font-medium transition-[background-color,color,transform] duration-200 active:scale-[0.96] ${
-            value === o.value ? "bg-text font-semibold text-bg" : "text-muted"
+            value === o.value ? "bg-accent-soft font-semibold text-accent-strong" : "text-muted"
           }`}
         >
           {o.label}

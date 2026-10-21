@@ -36,12 +36,11 @@ export function ProteinIdeas({
         <h2 id="protein-ideas" className="font-semibold">
           Close the protein gap
         </h2>
-        <div className="flex gap-1" role="radiogroup" aria-label="Diet">
+        <div className="flex gap-1" role="group" aria-label="Diet">
           {DIETS.map((d) => (
             <button
               key={d.value}
-              role="radio"
-              aria-checked={(diet ?? "nonveg") === d.value}
+              aria-pressed={(diet ?? "nonveg") === d.value}
               className="chip min-h-8 px-2.5 text-xs"
               data-on={(diet ?? "nonveg") === d.value}
               onClick={() => void updateProfile({ diet: d.value })}

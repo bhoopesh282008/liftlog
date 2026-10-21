@@ -109,7 +109,7 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
                   key={href}
                   href={href}
                   className={`relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-semibold transition-colors duration-200 ${
-                    active ? "text-accent" : "text-faint hover:text-muted"
+                    active ? "text-accent-strong" : "text-faint hover:text-muted"
                   }`}
                   aria-current={active ? "page" : undefined}
                 >

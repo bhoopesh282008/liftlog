@@ -92,6 +92,7 @@ export function SettingsScreen() {
               value={String(profile.restSeconds)}
               onChange={(v) => void updateProfile({ restSeconds: Number(v) })}
               options={["60", "90", "120", "180"].map((s) => ({ value: s, label: Number(s) < 120 ? `${s}s` : `${Number(s) / 60}m` }))}
+              ariaLabel="Rest timer"
             />
           </div>
         </div>
@@ -131,6 +132,7 @@ export function SettingsScreen() {
               toast(`${MODE_LABELS[v].label}: ${t ? `${t.calories.toLocaleString()} kcal, ${t.protein} g protein` : "saved"}`);
             }}
             options={GOAL_MODES.map((m) => ({ value: m, label: MODE_LABELS[m].label }))}
+            ariaLabel="Goal"
           />
           <p className="text-sm text-muted">
             {MODE_LABELS[mode].detail}: {formatAdjust(mode)} calories vs maintenance.
@@ -165,6 +167,7 @@ export function SettingsScreen() {
               toast(`Protein goal set to ${Number(v).toFixed(1)} g per kg`);
             }}
             options={PROTEIN_LEVELS.map((l) => ({ value: String(l.perKg), label: l.label }))}
+            ariaLabel="Protein goal"
           />
           <p className="text-sm text-muted">
             {PROTEIN_LEVELS.find((l) => l.perKg === perKg)?.detail ?? ""}. It updates as your weight changes.
@@ -396,6 +399,7 @@ function StepsSettings({ goal }: { goal: number }) {
           value={String(goal)}
           options={[6000, 8000, 10000, 12000].map((n) => ({ value: String(n), label: `${n / 1000}k` }))}
           onChange={(v) => void updateProfile({ stepGoal: Number(v) })}
+          ariaLabel="Daily step goal"
         />
       </div>
       <details className="group px-4 py-3">

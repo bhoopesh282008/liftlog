@@ -8,11 +8,23 @@ import { addDays, dateKey, formatDay } from "@/lib/dates";
 import { dailyTotals } from "@/lib/progress-logic";
 import { proteinStreak } from "@/lib/protein";
 import { waterGoalGlasses } from "@/lib/training";
-import { ensureFood, logFood, mealForNow, remove, save, saveMealFromEntries } from "@/lib/repo";
+import {
+  ensureFood,
+  logFood,
+  mealForNow,
+  remove,
+  save,
+  saveMealFromEntries,
+} from "@/lib/repo";
 import type { Food, FoodEntry, Meal } from "@/lib/types";
 import { AdjustmentBanner } from "./adjustment-banner";
 import { BarcodeScanner } from "./barcode-scanner";
-import { AddFoodSheet, CustomFoodSheet, type FoodTarget, NameSheet } from "./food-sheets";
+import {
+  AddFoodSheet,
+  CustomFoodSheet,
+  type FoodTarget,
+  NameSheet,
+} from "./food-sheets";
 import { HabitsCard } from "./habits-card";
 import { MealLog } from "./meal-log";
 import { ProteinCard } from "./protein-card";
@@ -31,7 +43,10 @@ export function FoodScreen() {
   const [query, setQuery] = useState("");
   const [target, setTarget] = useState<FoodTarget | null>(null);
   const [scanning, setScanning] = useState(false);
-  const [custom, setCustom] = useState<{ name: string; barcode?: string } | null>(null);
+  const [custom, setCustom] = useState<{
+    name: string;
+    barcode?: string;
+  } | null>(null);
   const [savingMeal, setSavingMeal] = useState<FoodEntry[] | null>(null);
   const [recipe, setRecipe] = useState<{ food: Food | null } | null>(null);
   const [defaultMeal, setDefaultMeal] = useState<Meal>(() => mealForNow());
@@ -42,23 +57,33 @@ export function FoodScreen() {
   if (!day) return null;
   const { data, isToday, totals, t, training } = day;
   const searching = query.trim().length > 0;
-  const pick = (food: Food, servings?: number) => setTarget({ kind: "add", food, servings });
+  const pick = (food: Food, servings?: number) =>
+    setTarget({ kind: "add", food, servings });
 
   const add = async (food: Food, servings: number, meal: Meal) => {
     const e = await logFood(food, servings, meal, date);
     setTarget(null);
     setQuery("");
     setDefaultMeal(meal);
-    toast(`Added ${food.name}`, { label: "Undo", run: () => void remove("foodEntries", e.id) });
+    toast(`Added ${food.name}`, {
+      label: "Undo",
+      run: () => void remove("foodEntries", e.id),
+    });
   };
 
   return (
     <div className="px-4 pt-5">
       <header className="mb-4 flex items-center justify-between">
-        <button className="btn btn-ghost btn-icon -ml-2" onClick={() => setDate(addDays(date, -1))} aria-label="Previous day">
+        <button
+          className="btn btn-ghost btn-icon -ml-2"
+          onClick={() => setDate(addDays(date, -1))}
+          aria-label="Previous day"
+        >
           <ChevronLeft size={22} />
         </button>
-        <h1 className="font-display text-[28px] leading-none font-bold uppercase">{formatDay(date)}</h1>
+        <h1 className="font-display text-[28px] leading-none font-bold uppercase">
+          {formatDay(date)}
+        </h1>
         <button
           className="btn btn-ghost btn-icon -mr-2"
           onClick={() => setDate(addDays(date, 1))}
@@ -76,7 +101,11 @@ export function FoodScreen() {
           <ProteinCard
             eaten={totals}
             target={t}
-            streak={isToday ? proteinStreak(dailyTotals(data.entries), data.targets, date) : 0}
+            streak={
+              isToday
+                ? proteinStreak(dailyTotals(data.entries), data.targets, date)
+                : 0
+            }
             perKg={data.perKg}
             weightKg={data.latestKg}
             mode={data.mode}
@@ -84,22 +113,42 @@ export function FoodScreen() {
             isToday={isToday}
             dayNote={day.dayNote}
           />
-          <SendToObsidian date={date} className="btn btn-ghost -mt-1 mb-3 w-full text-sm" />
+          <SendToObsidian
+            date={date}
+            className="btn btn-ghost -mt-1 mb-3 w-full text-sm"
+          />
           {isToday && <SupplementReminder date={date} training={training} />}
           <QuickAdd quick={day.quick} date={date} meal={defaultMeal} />
-          {day.phase && <WorkoutCard phase={day.phase} diet={data.diet} onPick={pick} />}
+          {day.phase && (
+            <WorkoutCard phase={day.phase} diet={data.diet} onPick={pick} />
+          )}
           {isToday && (
-            <ProteinIdeas gap={t.protein - totals.protein} kcalLeft={t.calories - totals.kcal} candidates={day.candidates} diet={data.diet} onPick={pick} />
+            <ProteinIdeas
+              gap={t.protein - totals.protein}
+              kcalLeft={t.calories - totals.kcal}
+              candidates={day.candidates}
+              diet={data.diet}
+              onPick={pick}
+            />
           )}
         </>
       )}
 
-      <HabitsCard date={date} training={training} waterGoal={data.latestKg ? waterGoalGlasses(data.latestKg, training) : undefined} />
+      <HabitsCard
+        date={date}
+        training={training}
+        waterGoal={
+          data.latestKg ? waterGoalGlasses(data.latestKg, training) : undefined
+        }
+      />
 
       <div className="sticky top-0 z-10 -mx-4 mb-3 bg-bg/90 px-4 py-2 backdrop-blur-lg">
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search size={18} className="absolute top-1/2 left-3.5 -translate-y-1/2 text-faint" />
+            <Search
+              size={18}
+              className="absolute top-1/2 left-3.5 -translate-y-1/2 text-faint"
+            />
             <input
               className="input pr-10 pl-10"
               placeholder="Search dal, paneer, protein bar…"
@@ -108,42 +157,54 @@ export function FoodScreen() {
               enterKeyHint="search"
             />
             {searching && (
-              <button className="absolute top-1/2 right-1 flex size-10 -translate-y-1/2 items-center justify-center text-faint" onClick={() => setQuery("")} aria-label="Clear search">
+              <button
+                className="absolute top-1/2 right-1 flex size-10 -translate-y-1/2 items-center justify-center text-faint"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+              >
                 <X size={18} />
               </button>
             )}
           </div>
-          <button className="btn btn-icon" onClick={() => setScanning(true)} aria-label="Scan barcode">
+          <button
+            className="btn btn-icon"
+            onClick={() => setScanning(true)}
+            aria-label="Scan barcode"
+          >
             <Barcode size={20} />
           </button>
         </div>
       </div>
 
-      {searching ? (
-        <SearchResults
-          query={query}
-          online={online}
-          foods={data.foods}
-          useCounts={day.useCounts}
-          onPick={(f) => pick(f)}
-          onCreate={(name) => setCustom({ name })}
-          onRecipe={() => setRecipe({ food: null })}
-        />
-      ) : (
-        <MealLog
-          date={date}
-          entries={data.entries}
-          dayEntries={day.dayEntries}
-          prevEntries={day.prevEntries}
-          foods={data.foods}
-          savedMeals={data.savedMeals}
-          defaultMeal={defaultMeal}
-          onEdit={(entry) => setTarget({ kind: "edit", entry })}
-          onPick={pick}
-          onSaveMeal={setSavingMeal}
-          onNewRecipe={() => setRecipe({ food: null })}
-        />
-      )}
+      {/* scroll-mt so Tab-focusing a row scrolled under the sticky search
+          bar above doesn't land it hidden behind it (WCAG 2.4.11). */}
+      <div className="[&_button]:scroll-mt-20 [&_input]:scroll-mt-20">
+        {searching ? (
+          <SearchResults
+            query={query}
+            online={online}
+            foods={data.foods}
+            useCounts={day.useCounts}
+            onPick={(f) => pick(f)}
+            onCreate={(name) => setCustom({ name })}
+            onRecipe={() => setRecipe({ food: null })}
+          />
+        ) : (
+          <MealLog
+            date={date}
+            entries={data.entries}
+            dayEntries={day.dayEntries}
+            prevEntries={day.prevEntries}
+            foods={data.foods}
+            savedMeals={data.savedMeals}
+            defaultMeal={defaultMeal}
+            onEdit={(entry) => setTarget({ kind: "edit", entry })}
+            onPick={pick}
+            onSaveMeal={setSavingMeal}
+            onNewRecipe={() => setRecipe({ food: null })}
+          />
+        )}
+      </div>
 
       <RecipeSheet
         open={!!recipe}
@@ -171,7 +232,10 @@ export function FoodScreen() {
         onDelete={async (entry) => {
           await remove("foodEntries", entry.id);
           setTarget(null);
-          toast(`Removed ${entry.name}`, { label: "Undo", run: () => void save("foodEntries", { ...entry, deletedAt: null }) });
+          toast(`Removed ${entry.name}`, {
+            label: "Undo",
+            run: () => void save("foodEntries", { ...entry, deletedAt: null }),
+          });
         }}
       />
       <BarcodeScanner

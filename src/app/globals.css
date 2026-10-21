@@ -15,6 +15,11 @@
   --line-strong: rgb(17 19 17 / 0.14);
   --accent: #d61f2c;
   --accent-soft: rgb(214 31 44 / 0.1);
+  /* Text/icons on an --accent-soft fill need more contrast than --accent
+     gives on its own here: measured ~4:1 against the tint, under the 4.5:1
+     normal-text minimum, and glass surfaces lighten it further in places.
+     Used by the tab bar and any selected chip or Segmented option. */
+  --accent-strong: #ae0004;
   --on-accent: #ffffff;
   --pr: #b45309;
   --pr-soft: rgb(180 83 9 / 0.12);
@@ -48,6 +53,9 @@
     --line-strong: rgb(255 255 255 / 0.13);
     --accent: #ff4d4d;
     --accent-soft: rgb(255 77 77 / 0.14);
+    /* Passes against a flat card, but glass over the ambient light (e.g.
+       onboarding) lightens the tint enough to need a touch more contrast. */
+    --accent-strong: #ff6464;
     --on-accent: #1a0505;
     --pr: #ffb020;
     --pr-soft: rgb(255 176 32 / 0.14);
@@ -80,6 +88,7 @@
   --line-strong: rgb(255 255 255 / 0.13);
   --accent: #ff4d4d;
   --accent-soft: rgb(255 77 77 / 0.14);
+  --accent-strong: #ff6464;
   --on-accent: #1a0505;
   --track: rgb(255 255 255 / 0.07);
   --card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
@@ -103,6 +112,7 @@
   --color-line-strong: var(--line-strong);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
   --color-on-accent: var(--on-accent);
   --color-pr: var(--pr);
   --color-pr-soft: var(--pr-soft);
@@ -136,7 +146,6 @@ body {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 10px;
 }
 /* Fields that show focus on their container instead. */
 .input:focus-visible,
@@ -346,7 +355,7 @@ p {
   }
   .chip[data-on="true"] {
     background: var(--accent-soft);
-    color: var(--accent);
+    color: var(--accent-strong);
   }
 
   /* List rows: a full-bleed row, or one inset inside a padded list. */

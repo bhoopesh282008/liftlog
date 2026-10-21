@@ -82,7 +82,14 @@ export function ProteinCard({
       </details>
 
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <Macro label="Calories" value={eaten.kcal} goal={target.calories} unit="" note={kcalLeft >= 0 ? `${r(kcalLeft).toLocaleString()} left` : `${r(-kcalLeft).toLocaleString()} over`} />
+        <Macro
+          label="Calories"
+          value={eaten.kcal}
+          goal={target.calories}
+          unit=""
+          note={kcalLeft >= 0 ? `${r(kcalLeft).toLocaleString()} left` : `${r(-kcalLeft).toLocaleString()} over`}
+          emphasize
+        />
         <Macro label="Carbs" value={eaten.carbs} goal={target.carbs} unit=" g" />
         <Macro label="Fat" value={eaten.fat} goal={target.fat} unit=" g" />
       </div>
@@ -127,7 +134,9 @@ function Ring({ value, max }: { value: number; max: number }) {
   );
 }
 
-function Macro({ label, value, goal, unit, note }: { label: string; value: number; goal: number; unit: string; note?: string }) {
+function Macro({ label, value, goal, unit, note, emphasize }: { label: string; value: number; goal: number; unit: string; note?: string; emphasize?: boolean }) {
+  // Calories is the number that gates whether there's room to eat more
+  // today, so it gets the accent bar the other two macros don't.
   return (
     <div className="rounded-2xl bg-surface-2 p-3">
       <p className="text-xs font-medium text-muted">{label}</p>
@@ -139,9 +148,9 @@ function Macro({ label, value, goal, unit, note }: { label: string; value: numbe
         {unit || " kcal"}
       </p>
       <div className="mt-2">
-        <Bar value={value} max={goal} tone="muted" />
+        <Bar value={value} max={goal} tone={emphasize ? "accent" : "muted"} />
       </div>
-      {note && <p className="num mt-1 text-[11px] text-faint">{note}</p>}
+      {note && <p className={`num mt-1 text-[11px] ${emphasize ? "font-medium text-accent-strong" : "text-faint"}`}>{note}</p>}
     </div>
   );
 }

@@ -87,7 +87,7 @@ function AddFoodForm({ target, defaultMeal, onAdd, onUpdate, onDelete, onEditRec
         <p className="label mb-1.5">Servings</p>
         <Stepper label="servings" value={servings} step={0.5} min={0.25} onChange={setServings} />
       </div>
-      <Segmented value={meal} options={MEALS} onChange={setMeal} />
+      <Segmented value={meal} options={MEALS} onChange={setMeal} ariaLabel="Meal" />
       {target.kind === "add" ? (
         <button className="btn btn-primary w-full" disabled={servings <= 0} onClick={() => onAdd(target.food, servings, meal)}>
           Add to {MEALS.find((m) => m.value === meal)!.label.toLowerCase()}
