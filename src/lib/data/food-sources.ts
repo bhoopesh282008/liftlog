@@ -1,6 +1,7 @@
 import type { Food } from "../types";
 import { CURATED_FOODS, curatedSearchText } from "./indian-foods";
-import { INDB_ROWS } from "./indb-foods";
+// Aliased to indb-foods.local.ts when that file exists (see next.config.ts).
+import { INDB_ROWS } from "@/lib/data/indb-foods";
 
 // Which built-in Indian food data the app searches.
 //   "indb":    INDB recipes (scripts/import-indb.ts), plus curated foods that
@@ -9,7 +10,7 @@ import { INDB_ROWS } from "./indb-foods";
 //   "curated": only the hand-curated estimates in indian-foods.ts.
 // INDB's reuse terms are unconfirmed (its repo has no license file), so it
 // must stay easy to switch off: set NEXT_PUBLIC_BUILTIN_FOODS=curated, or
-// delete indb-foods.ts and this import. Logged entries snapshot their macros,
+// delete indb-foods.local.ts. Logged entries snapshot their macros,
 // so switching never changes past logs.
 export type BuiltinSource = "indb" | "curated";
 

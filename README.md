@@ -59,4 +59,5 @@ On a new device, sign in on the welcome screen **before** you set it up. If you 
 - Food data:
   - Indian dishes: [src/lib/data/indian-foods.ts](src/lib/data/indian-foods.ts), typical home-recipe values.
   - Packaged foods: Open Food Facts, through [src/app/api/foods](src/app/api/foods).
+  - Optional, local only: recipes from the [Indian Nutrient Databank](https://github.com/lindsayjaacks/Indian-Nutrient-Databank-INDB-). INDB has no licence, so its rows aren't in this repo. [scripts/import-indb.ts](scripts/import-indb.ts) writes them to a gitignored file that local builds and tests pick up.
 - Logic with tests: targets and auto-adjust ([src/lib/targets.ts](src/lib/targets.ts)), rotation, PRs, and pre-fill ([src/lib/workout-logic.ts](src/lib/workout-logic.ts)), and food search ([src/lib/food-search.ts](src/lib/food-search.ts)).

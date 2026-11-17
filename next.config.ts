@@ -1,6 +1,13 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
+
+// INDB rows live only on this machine (no licence, so never in git). When
+// scripts/import-indb.ts has written them, they replace the empty placeholder.
+const INDB_LOCAL = "./src/lib/data/indb-foods.local.ts";
+const indbAlias: Record<string, string> = existsSync(join(process.cwd(), INDB_LOCAL)) ? { "@/lib/data/indb-foods": INDB_LOCAL } : {};
 
 // Static pages can't carry nonces, so scripts need 'unsafe-inline' (Next's
 // no-nonce CSP). Everything else is locked to this origin, plus Supabase for
@@ -34,6 +41,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
+    resolveAlias: indbAlias,
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],

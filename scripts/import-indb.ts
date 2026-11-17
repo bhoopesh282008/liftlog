@@ -1,5 +1,6 @@
 // Converts the Indian Nutrient Databank (INDB) recipe tables into LiftLog
-// foods, written to src/lib/data/indb-foods.ts.
+// foods, written to src/lib/data/indb-foods.local.ts (gitignored: INDB has no
+// licence, so its rows never go into the repo).
 //
 //   node scripts/import-indb.ts <folder with INDB.xlsx, recipes_servingsize.xlsx, recipes_names.xlsx>
 //   node scripts/import-indb.ts <folder> --inspect   (print each sheet's header row and first rows)
@@ -307,7 +308,7 @@ if (dir) {
     console.error(`These mapped INDB codes were not kept: ${missing.join(", ")}`);
     process.exit(1);
   }
-  const out = join(import.meta.dirname, "..", "src", "lib", "data", "indb-foods.ts");
+  const out = join(import.meta.dirname, "..", "src", "lib", "data", "indb-foods.local.ts");
   writeFileSync(out, render(foods, rejected.length));
   console.log(`Wrote ${foods.length} INDB foods to ${out}`);
   console.log(`Dropped ${rejected.length}:`);

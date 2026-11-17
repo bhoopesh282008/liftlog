@@ -62,3 +62,6 @@ __pycache__/
 /.opencode/
 /.tracker/
 /opencode.jsonc
+
+# INDB food rows: no licence, personal use only (see src/lib/data/indb-foods.ts)
+/src/lib/data/indb-foods.local.ts

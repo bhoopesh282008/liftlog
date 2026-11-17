@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { INDB_ROWS } from "@/lib/data/indb-foods";
 import { offToFood, searchLocal } from "./food-search";
 
 describe("local food search", () => {
@@ -16,7 +17,8 @@ describe("local food search", () => {
   });
 });
 
-describe("INDB-backed search", () => {
+// Needs the local INDB rows (gitignored), so it skips on a fresh clone.
+describe.skipIf(INDB_ROWS.length === 0)("INDB-backed search", () => {
   const top = (q: string) => searchLocal(q, [], new Map(), 25, "indb")[0];
   const sane = (f: { kcal: number; protein: number; carbs: number; fat: number }) =>
     Math.abs(4 * f.protein + 4 * f.carbs + 9 * f.fat - f.kcal) <= Math.max(25, f.kcal * 0.35);

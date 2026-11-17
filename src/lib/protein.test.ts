@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { builtinFoods } from "./data/food-sources";
+import { INDB_ROWS } from "@/lib/data/indb-foods";
 import { dietOf, lopsidedMeal, mealBand, proteinIdeas, proteinPer100Kcal, proteinStreak, quickAddFoods, VEG_GUIDE, vegProteinGuide } from "./protein";
 import type { Macros, Meal, Target } from "./types";
 
@@ -129,7 +130,8 @@ describe("quick add", () => {
     ]);
   });
 
-  it("uses the INDB row that stands in for a curated food", () => {
+  // Needs the local INDB rows (gitignored), so it skips on a fresh clone.
+  it.skipIf(INDB_ROWS.length === 0)("uses the INDB row that stands in for a curated food", () => {
     const egg = quickAddFoods(builtinFoods("indb")).find((q) => q.label === "2 eggs");
     expect(egg?.food.source).toBe("indb");
     expect(quickAddFoods(builtinFoods("indb"))).toHaveLength(7);
