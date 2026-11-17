@@ -28,7 +28,7 @@ export function HabitsCard({ date, waterGoal, training }: { date: string; waterG
     <section className="card mb-4 p-4">
       <div className="flex items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm font-medium">
-          <Droplet size={16} className="text-accent" /> Water
+          <Droplet size={16} className="text-muted" aria-hidden /> Water
         </p>
         <p className="num text-sm">
           <b>{data.water}</b>
@@ -40,7 +40,7 @@ export function HabitsCard({ date, waterGoal, training }: { date: string; waterG
       </div>
       <div className="mt-2 flex items-center gap-2">
         <div className="flex-1">
-          <Bar value={data.water} max={data.goal} />
+          <Bar value={data.water} max={data.goal} tone="muted" />
         </div>
         <button
           className="btn btn-icon"
@@ -50,7 +50,7 @@ export function HabitsCard({ date, waterGoal, training }: { date: string; waterG
         >
           <Minus size={18} />
         </button>
-        <button className="btn btn-primary btn-icon" aria-label="Add a glass of water" onClick={() => void updateDay(date, { waterGlasses: data.water + 1 })}>
+        <button className="btn btn-icon" aria-label="Add a glass of water" onClick={() => void updateDay(date, { waterGlasses: data.water + 1 })}>
           <Plus size={18} />
         </button>
       </div>

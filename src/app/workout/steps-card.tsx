@@ -28,7 +28,7 @@ export function StepsCard({ date, weightKg }: { date: string; weightKg: number |
       <div className="flex items-start justify-between gap-3">
         <div>
           <p id="steps-title" className="flex items-center gap-2 text-sm font-medium">
-            <Footprints size={16} className="text-accent" aria-hidden /> Steps
+            <Footprints size={16} className="text-muted" aria-hidden /> Steps
           </p>
           <p className="mt-1 leading-none">
             <span className="num font-display text-[34px] font-bold">{fmt(today)}</span>

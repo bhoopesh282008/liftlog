@@ -57,8 +57,9 @@ function Gate({ children, onReady }: { children: ReactNode; onReady: () => void 
   // undefined while loading, null when there is no profile yet.
   const profile = useLiveQuery(async () => (await db.profile.get(PROFILE_ID)) ?? null, []);
   const onboarding = pathname.startsWith("/onboarding");
-  // The Shortcut's landing page works without setup (it opens in Safari).
-  const standalone = pathname.startsWith("/steps");
+  // The Shortcut's landing page and the password-reset page open in Safari,
+  // so they work without setup.
+  const standalone = pathname.startsWith("/steps") || pathname.startsWith("/reset");
   const needsOnboarding = profile === null || (profile && !profile.onboarded);
 
   useEffect(() => {
@@ -302,7 +303,7 @@ function DemoBanner() {
       <span className="flex-1">
         <b className="font-semibold">Demo data.</b> <span className="text-muted">Explore freely, then start your own.</span>
       </span>
-      <button className="btn btn-primary min-h-9 px-4 text-sm" onClick={() => void exitDemo()}>
+      <button className="btn min-h-9 px-4 text-sm" onClick={() => void exitDemo()}>
         Start fresh
       </button>
     </div>

@@ -161,14 +161,17 @@ body {
   }
 }
 
+/* text-wrap-style, not the text-wrap shorthand: the shorthand also resets
+   the wrap mode, and since these rules sit outside any layer they would beat
+   Tailwind's whitespace-nowrap and truncate utilities. */
 h1,
 h2,
 h3 {
-  text-wrap: balance;
+  text-wrap-style: balance;
 }
 
 p {
-  text-wrap: pretty;
+  text-wrap-style: pretty;
 }
 
 @layer components {

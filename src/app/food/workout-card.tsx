@@ -17,7 +17,7 @@ export function WorkoutCard({ phase, diet, onPick }: { phase: WorkoutPhase; diet
   return (
     <section className="card mb-4 p-4" aria-labelledby="workout-food">
       <h2 id="workout-food" className="flex items-center gap-2 font-semibold">
-        <Dumbbell size={16} className="text-accent" /> {COPY[phase].title}
+        <Dumbbell size={16} className="text-muted" aria-hidden /> {COPY[phase].title}
       </h2>
       <p className="mt-1 text-sm text-muted">{COPY[phase].body}</p>
       <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">

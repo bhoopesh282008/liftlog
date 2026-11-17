@@ -47,6 +47,8 @@ Without these keys the app works fully on one device. To sync your phone and lap
    ```
 
 5. Restart or redeploy. Create your account under **Settings → Account** on one device, then sign in with the same email and password on the others.
+6. For **Delete account**, run [supabase/migrations/0002_delete_account.sql](supabase/migrations/0002_delete_account.sql) in the SQL Editor too. Without it, Delete account still erases your synced data but leaves the login itself.
+7. For **Forgot password?**, add your app's `/reset` page (for example `https://your-app.vercel.app/reset`, and `http://localhost:3000/reset` for local testing) under **Authentication → URL Configuration → Redirect URLs**, and set **Site URL** to the app's address. The reset email opens in Safari: you set a new password there, then sign in with it in the app. Supabase's built-in email sends only a few messages an hour.
 
 On a new device, sign in on the welcome screen **before** you set it up. If you set it up first, you'll end up with two copies of your split.
 

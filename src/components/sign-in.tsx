@@ -2,24 +2,27 @@
 
 import type { Session } from "@supabase/supabase-js";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Cloud, CloudOff, RefreshCw } from "lucide-react";
+import { Cloud, CloudOff, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/db";
 import { DEMO_FLAG } from "@/lib/demo";
-import { supabase, syncConfigured, syncNow } from "@/lib/sync";
+import { Sheet } from "@/components/ui";
+import { deleteAccount, requestPasswordReset, signOut, supabase, syncConfigured, syncNow } from "@/lib/sync";
 
 // Email + password, entirely inside the app. Emailed links open in Safari,
 // not the iPhone home-screen app, so the session would land in the wrong
 // place; Supabase's default email can't carry a code without custom SMTP.
 // Email confirmation is off in the Supabase project, so a new account
-// signs straight in.
+// signs straight in. The one emailed link is the password reset: it opens
+// /reset in Safari, you pick a new password there, then sign in here.
 const MIN_PASSWORD = 8;
 
 export function SignInCard({ compact = false, title = "Sync across devices" }: { compact?: boolean; title?: string }) {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
+  const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const pending = useLiveQuery(() => db.outbox.count(), []) ?? 0;
@@ -89,16 +92,20 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
           >
             <RefreshCw size={16} className={busy ? "animate-spin" : ""} /> Sync now
           </button>
-          <button className="btn btn-ghost" onClick={() => void auth().then((a) => a.signOut())}>
+          <button className="btn btn-ghost" onClick={() => void signOut()}>
             Sign out
           </button>
         </div>
         {msg && <p className="text-muted">{msg}</p>}
+        <button type="button" className="btn btn-ghost w-full text-sm text-danger" onClick={() => setDeleting(true)}>
+          <Trash2 size={16} aria-hidden /> Delete account
+        </button>
+        <DeleteAccountSheet open={deleting} onClose={() => setDeleting(false)} onDeleted={setMsg} />
       </div>
     );
   }
 
-  const valid = email.includes("@") && password.length >= (mode === "signup" ? MIN_PASSWORD : 1);
+  const valid = email.includes("@") && (mode === "forgot" || password.length >= (mode === "signup" ? MIN_PASSWORD : 1));
   return (
     <form
       className={compact ? "rounded-2xl border border-line p-4 text-left" : ""}
@@ -106,6 +113,19 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
         e.preventDefault();
         setBusy(true);
         setMsg("");
+        if (mode === "forgot") {
+          const error = await requestPasswordReset(email);
+          setMsg(
+            error
+              ? /rate limit/i.test(error)
+                ? "Too many reset emails just now. Wait an hour and try again."
+                : error
+              : "If that email has an account, a reset link is on its way. It opens in Safari: set a new password there, then sign in here.",
+          );
+          if (!error) setMode("signin");
+          setBusy(false);
+          return;
+        }
         const a = await auth();
         const creds = { email: email.trim(), password };
         const { data, error } = mode === "signup" ? await a.signUp(creds) : await a.signInWithPassword(creds);
@@ -142,30 +162,46 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
-      <label className="label mt-2 mb-1 block" htmlFor="sync-password">
-        Password{mode === "signup" && ` (${MIN_PASSWORD}+ characters)`}
-      </label>
-      <input
-        id="sync-password"
-        name="password"
-        className="input"
-        type="password"
-        autoComplete={mode === "signup" ? "new-password" : "current-password"}
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+      {mode !== "forgot" && (
+        <>
+          <label className="label mt-2 mb-1 block" htmlFor="sync-password">
+            Password{mode === "signup" && ` (${MIN_PASSWORD}+ characters)`}
+          </label>
+          <input
+            id="sync-password"
+            name="password"
+            className="input"
+            type="password"
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </>
+      )}
       <button className="btn btn-primary mt-3 w-full" disabled={busy || !valid} type="submit">
-        {busy ? "One moment…" : mode === "signup" ? "Create account" : "Sign in"}
+        {busy ? "One moment…" : mode === "signup" ? "Create account" : mode === "forgot" ? "Email me a reset link" : "Sign in"}
       </button>
+      {mode === "signin" && (
+        <button
+          type="button"
+          className="btn btn-ghost mt-1 w-full text-sm"
+          onClick={() => {
+            setMode("forgot");
+            setMsg("");
+          }}
+        >
+          Forgot password?
+        </button>
+      )}
       <button
         type="button"
         className="btn btn-ghost mt-1 w-full text-sm"
         onClick={() => {
-          setMode(mode === "signup" ? "signin" : "signup");
+          setMode(mode === "signin" ? "signup" : "signin");
           setMsg("");
         }}
       >
-        {mode === "signup" ? "Have an account? Sign in" : "New here? Create an account"}
+        {mode === "signin" ? "New here? Create an account" : "Have an account? Sign in"}
       </button>
       {msg && (
         <p className="mt-2 text-sm text-muted" aria-live="polite">
@@ -173,5 +209,67 @@ export function SignInCard({ compact = false, title = "Sync across devices" }: {
         </p>
       )}
     </form>
+  );
+}
+
+function DeleteAccountSheet({ open, onClose, onDeleted }: { open: boolean; onClose: () => void; onDeleted: (msg: string) => void }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const close = () => {
+    setPassword("");
+    setError("");
+    onClose();
+  };
+
+  return (
+    <Sheet open={open} onClose={close} title="Delete account">
+      <form
+        className="space-y-3 text-sm"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError("");
+          const r = await deleteAccount(password);
+          setBusy(false);
+          if (r.ok) {
+            close();
+            onDeleted("Account deleted. Your synced data is gone from the cloud; everything is still on this device.");
+          } else if (r.dataGone) {
+            close();
+            onDeleted(`Your synced data was deleted, but the account itself couldn't be removed (${r.error}).`);
+          } else {
+            setError(r.error);
+          }
+        }}
+      >
+        <p>This deletes your sync account and every workout, meal and weigh-in stored in the cloud. Other devices stop syncing. It can&apos;t be undone.</p>
+        <p className="text-muted">Your data stays on this device. Export a backup first if you want a copy.</p>
+        <label className="label mb-1 block" htmlFor="delete-password">
+          Enter your password to confirm
+        </label>
+        <input
+          id="delete-password"
+          className="input"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        {error && (
+          <p className="text-danger" aria-live="polite">
+            {error}
+          </p>
+        )}
+        <div className="flex gap-2 pt-1">
+          <button type="button" className="btn btn-ghost flex-1" onClick={close}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary flex-1" disabled={busy || !password}>
+            {busy ? "Deleting…" : "Delete account"}
+          </button>
+        </div>
+      </form>
+    </Sheet>
   );
 }

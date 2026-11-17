@@ -205,7 +205,7 @@ export function ProgressScreen() {
           <div className="mb-3 flex items-baseline justify-between gap-2">
             <h3 className="font-semibold">Weekly average</h3>
             {status && (
-              <span className={`text-xs font-semibold ${status === "on plan" ? "text-accent" : "text-pr"}`}>
+              <span className={`text-xs font-semibold ${status === "on plan" ? "text-text" : "text-pr"}`}>
                 {trend! >= 0 ? "+" : ""}
                 {trend!.toFixed(2)} kg/wk · {status}
               </span>

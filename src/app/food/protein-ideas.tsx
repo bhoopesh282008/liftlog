@@ -62,7 +62,7 @@ export function ProteinIdeas({
               onClick={() => onPick(i.food, i.servings)}
             >
               <span className="line-clamp-2 min-h-10 text-sm font-medium">{i.food.name}</span>
-              <span className="num mt-1 text-lg font-semibold text-accent">+{Math.round(i.protein)} g</span>
+              <span className="num mt-1 text-lg font-semibold">+{Math.round(i.protein)} g</span>
               <span className="num text-xs text-muted">
                 {i.servings > 1 ? `${i.servings} × ` : ""}
                 {i.food.serving} · {Math.round(i.kcal)} kcal

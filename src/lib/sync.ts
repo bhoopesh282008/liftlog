@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { db } from "./db";
+import { db, SYNCED_TABLES } from "./db";
 import type { SyncedTable } from "./types";
 
 // Sync is optional: with no Supabase keys the app runs fully on-device.
@@ -110,4 +110,67 @@ async function pull(sb: SupabaseClient): Promise<number> {
 
 export async function pendingChanges(): Promise<number> {
   return db.outbox.count();
+}
+
+// Forget which account this device last synced with: the pull cursor
+// restarts, and every local row is queued again so the next account (or the
+// same one, signing back in) gets a full copy. Last write wins makes the
+// re-upload harmless for an account that already has the rows.
+export async function resetSyncState(): Promise<void> {
+  await db.transaction("rw", [db.meta, db.outbox, ...SYNCED_TABLES.map((t) => db.table(t))], async () => {
+    await db.meta.bulkDelete(["pullCursor", "lastSyncAt"]);
+    await db.outbox.clear();
+    for (const table of SYNCED_TABLES) {
+      const ids = (await db.table(table).toCollection().primaryKeys()) as string[];
+      await db.outbox.bulkAdd(ids.map((rowId) => ({ table, rowId })));
+    }
+  });
+}
+
+export async function signOut(): Promise<void> {
+  const sb = await supabase();
+  if (!sb) return;
+  await sb.auth.signOut();
+  await resetSyncState();
+}
+
+// The emailed link opens /reset, which sets the new password. The address
+// must be listed under Authentication → URL Configuration → Redirect URLs.
+export async function requestPasswordReset(email: string): Promise<string | null> {
+  const sb = await supabase();
+  if (!sb) return "Sync isn't set up.";
+  const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset` });
+  return error ? error.message : null;
+}
+
+export type DeleteResult = { ok: true } | { ok: false; error: string; dataGone?: boolean };
+
+// Checks the password again first, so an unlocked phone left on a bench
+// can't wipe the account. Synced rows are deleted through RLS before the
+// account itself, so the cloud copy goes even if the account function
+// (supabase/migrations/0002) hasn't been installed yet.
+export async function deleteAccount(password: string): Promise<DeleteResult> {
+  const sb = await supabase();
+  if (!sb) return { ok: false, error: "Sync isn't set up." };
+  const { data } = await sb.auth.getSession();
+  const email = data.session?.user.email;
+  const userId = data.session?.user.id;
+  if (!email || !userId) return { ok: false, error: "You're not signed in." };
+
+  const check = await sb.auth.signInWithPassword({ email, password });
+  if (check.error) {
+    return { ok: false, error: /invalid login/i.test(check.error.message) ? "That password isn't right." : check.error.message };
+  }
+
+  const rows = await sb.from("user_records").delete().eq("user_id", userId);
+  if (rows.error) return { ok: false, error: rows.error.message };
+
+  const account = await sb.rpc("delete_my_account");
+  // The user no longer exists, so only the local session can be cleared.
+  await sb.auth.signOut({ scope: "local" });
+  await resetSyncState();
+  if (account.error) {
+    return { ok: false, dataGone: true, error: account.error.message };
+  }
+  return { ok: true };
 }

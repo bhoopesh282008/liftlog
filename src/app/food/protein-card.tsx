@@ -150,7 +150,8 @@ function Macro({ label, value, goal, unit, note, emphasize }: { label: string; v
       <div className="mt-2">
         <Bar value={value} max={goal} tone={emphasize ? "accent" : "muted"} />
       </div>
-      {note && <p className={`num mt-1 text-[11px] ${emphasize ? "font-medium text-accent-strong" : "text-faint"}`}>{note}</p>}
+      {/* Room left is information, not an alarm; going over is, in the PR amber. */}
+      {note && <p className={`num mt-1 text-[11px] ${value > goal ? "font-medium text-pr" : emphasize ? "font-medium text-muted" : "text-faint"}`}>{note}</p>}
     </div>
   );
 }

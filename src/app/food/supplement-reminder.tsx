@@ -44,16 +44,16 @@ export function SupplementReminder({ date, training }: { date: string; training:
   if (!data || data.missed.length === 0) return null;
 
   return (
-    <section className="animate-enter card mb-4 border-accent/30 bg-accent-soft p-4" aria-labelledby="supplement-reminder">
+    <section className="animate-enter card mb-4 p-4" aria-labelledby="supplement-reminder">
       <div className="flex items-start gap-3">
-        <Pill size={18} className="mt-0.5 shrink-0 text-accent" />
+        <Pill size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
         <div className="min-w-0 flex-1">
           <h2 id="supplement-reminder" className="text-sm font-semibold">
             Still to take today
           </h2>
           <div className="mt-2 flex flex-wrap gap-2">
             {data.missed.map((s) => (
-              <button key={s.id} className="chip min-h-11 bg-surface" aria-label={`Mark ${s.label} as taken`} onClick={() => void toggle(s)}>
+              <button key={s.id} className="chip min-h-11" aria-label={`Mark ${s.label} as taken`} onClick={() => void toggle(s)}>
                 <Circle size={16} className="text-faint" />
                 {s.label}
               </button>
